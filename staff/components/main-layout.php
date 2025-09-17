@@ -54,7 +54,7 @@ $currentUser = $auth->getCurrentUser();
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f5f5f5;
+            background-color: #f6f2ed; /* cream background */
             font-size: 14px;
         }
 
@@ -62,7 +62,7 @@ $currentUser = $auth->getCurrentUser();
         .sidebar {
             width: 180px;
             height: 100vh;
-            background: #2c5282; /* Different blue for staff */
+            background: linear-gradient(135deg,#3b2f2b 0%,#5a3f36 100%); /* coffee gradient */
             position: fixed;
             left: 0;
             top: 0;
@@ -80,12 +80,12 @@ $currentUser = $auth->getCurrentUser();
             width: 50px;
             height: 50px;
             border-radius: 50%;
-            background: #63b3ed;
+            background: #c79a6e; /* caramel avatar */
             display: flex;
             align-items: center;
             justify-content: center;
             margin: 0 auto 10px;
-            color: #1a365d;
+            color: #3b2f2b;
             font-size: 20px;
         }
 
@@ -121,7 +121,7 @@ $currentUser = $auth->getCurrentUser();
 
         .nav-item:hover,
         .nav-item.active {
-            background: rgba(99, 179, 237, 0.3);
+            background: rgba(199,154,110,0.18); /* soft caramel highlight */
             color: white;
             text-decoration: none;
         }
@@ -157,7 +157,7 @@ $currentUser = $auth->getCurrentUser();
         .header-title {
             font-size: 18px;
             font-weight: 600;
-            color: #2c5282;
+            color: #3b2f2b;
             margin: 0;
             text-transform: uppercase;
             letter-spacing: 0.5px;
@@ -170,7 +170,7 @@ $currentUser = $auth->getCurrentUser();
         }
 
         .welcome-section {
-            background: #bee3f8;
+            background: #f6eadf;
             border-radius: 8px;
             padding: 15px 20px;
             text-align: left;
@@ -178,14 +178,14 @@ $currentUser = $auth->getCurrentUser();
 
         .welcome-title {
             font-size: 14px;
-            color: #2c5282;
+            color: #3b2f2b;
             margin-bottom: 3px;
         }
 
         .welcome-subtitle {
             font-size: 16px;
             font-weight: 600;
-            color: #2c5282;
+            color: #3b2f2b;
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
@@ -204,7 +204,7 @@ $currentUser = $auth->getCurrentUser();
         }
 
         .stat-card {
-            background: #4299e1;
+            background: linear-gradient(135deg,#5a3f36 0%,#3b2f2b 100%);
             border-radius: 8px;
             padding: 20px 15px;
             text-align: center;
@@ -245,7 +245,7 @@ $currentUser = $auth->getCurrentUser();
         }
 
         .products-section {
-            background: white;
+            background: #fffdfa;
             border-radius: 8px;
             padding: 20px;
             overflow-y: auto;
@@ -277,8 +277,8 @@ $currentUser = $auth->getCurrentUser();
         }
 
         .product-card:hover {
-            background: #e3f2fd;
-            border-color: #2196f3;
+            background: #f6e9dd;
+            border-color: #c79a6e;
         }
 
         .product-name {
@@ -289,7 +289,7 @@ $currentUser = $auth->getCurrentUser();
 
         .product-price {
             font-size: 16px;
-            color: #2c5282;
+            color: #3b2f2b;
             font-weight: bold;
         }
 
@@ -302,7 +302,7 @@ $currentUser = $auth->getCurrentUser();
         }
 
         .cart-total {
-            background: #2c5282;
+            background: #5a3f36;
             color: white;
             padding: 15px;
             border-radius: 8px;
@@ -318,7 +318,7 @@ $currentUser = $auth->getCurrentUser();
         }
 
         .table th {
-            background-color: #2c5282;
+            background-color: #5a3f36;
             color: white;
             font-size: 12px;
             text-transform: uppercase;
@@ -326,13 +326,13 @@ $currentUser = $auth->getCurrentUser();
         }
 
         .btn-primary {
-            background-color: #2c5282;
-            border-color: #2c5282;
+            background-color: #5a3f36;
+            border-color: #5a3f36;
         }
 
         .btn-primary:hover {
-            background-color: #2a4a7a;
-            border-color: #2a4a7a;
+            background-color: #46312d;
+            border-color: #46312d;
         }
 
         /* Responsive */
