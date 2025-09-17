@@ -3,6 +3,7 @@
 require_once '../../includes/database.php';
 require_once '../../includes/auth.php';
 require_once '../../includes/functions.php';
+require_once '../../includes/ThermalPrinter.php';
 
 // Initialize database and auth
 try {
@@ -133,6 +134,104 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 
                 $change = $receivedAmount - $total;
                 
+                // Get printer settings for receipt printing
+                $autoPrint = false;
+                $printerSettings = [];
+                $businessSettings = [];
+                
+                try {
+                    $settingsResult = $db->fetchAll("SELECT setting_key, setting_value FROM settings");
+                    foreach ($settingsResult as $setting) {
+                        if (strpos($setting['setting_key'], 'printer_') === 0 || 
+                            in_array($setting['setting_key'], ['paper_width', 'character_set', 'enable_cash_drawer', 'print_qr_code', 'auto_print_receipt'])) {
+                            $printerSettings[$setting['setting_key']] = $setting['setting_value'];
+                        }
+                        if (strpos($setting['setting_key'], 'business_') === 0 || 
+                            in_array($setting['setting_key'], ['receipt_header', 'receipt_footer', 'tax_rate'])) {
+                            $businessSettings[$setting['setting_key']] = $setting['setting_value'];
+                        }
+                    }
+                    
+                    $autoPrint = ($printerSettings['auto_print_receipt'] ?? '0') == '1';
+                } catch (Exception $e) {
+                    error_log("Error getting printer settings: " . $e->getMessage());
+                }
+                
+                // Prepare receipt data
+                $receiptData = [
+                    'business_name' => $businessSettings['business_name'] ?? '9BAR COFFEE',
+                    'business_address' => $businessSettings['business_address'] ?? '',
+                    'business_phone' => $businessSettings['business_phone'] ?? '',
+                    'sale_id' => $saleId,
+                    'transaction_number' => $saleData['transaction_number'],
+                    'cashier' => $user['username'],
+                    'customer_name' => $customerName,
+                    'items' => [],
+                    'subtotal' => $subtotal,
+                    'tax_rate' => $businessSettings['tax_rate'] ?? '12',
+                    'tax_amount' => $taxAmount,
+                    'total_amount' => $total,
+                    'payment_method' => $paymentMethod,
+                    'amount_paid' => $receivedAmount,
+                    'change_amount' => $change,
+                    'receipt_header' => $businessSettings['receipt_header'] ?? 'Welcome to 9Bar Coffee!',
+                    'receipt_footer' => $businessSettings['receipt_footer'] ?? 'Thank you for your business!'
+                ];
+                
+                // Add items to receipt data
+                foreach ($_SESSION['cart'] as $item) {
+                    $receiptData['items'][] = [
+                        'product_name' => $item['product_name'],
+                        'quantity' => $item['quantity'],
+                        'unit_price' => $item['price'],
+                        'subtotal' => $item['price'] * $item['quantity']
+                    ];
+                }
+                
+                // Add QR code if enabled
+                if (isset($printerSettings['print_qr_code']) && $printerSettings['print_qr_code'] == '1') {
+                    $receiptData['qr_data'] = 'Sale #' . $saleId . ' - ' . date('Y-m-d H:i:s') . ' - Total: P' . number_format($total, 2);
+                }
+                
+                // Auto print if enabled
+                $printSuccess = false;
+                if ($autoPrint) {
+                    try {
+                        $printerType = $printerSettings['printer_type'] ?? 'windows';
+                        $connectionString = '';
+                        
+                        switch ($printerType) {
+                            case 'network':
+                                $ip = $printerSettings['network_printer_ip'] ?? '';
+                                $port = $printerSettings['network_printer_port'] ?? '9100';
+                                $connectionString = $ip . ':' . $port;
+                                break;
+                            case 'usb':
+                                $connectionString = $printerSettings['usb_printer_path'] ?? 'COM1';
+                                break;
+                            case 'windows':
+                            default:
+                                $connectionString = $printerSettings['windows_printer_name'] ?? '';
+                                break;
+                        }
+                        
+                        $printer = new ThermalPrinter($printerType, $connectionString);
+                        $printSuccess = $printer->printReceipt($receiptData);
+                        
+                        // Open cash drawer if enabled and payment is cash
+                        if ($paymentMethod === 'cash' && 
+                            isset($printerSettings['enable_cash_drawer']) && 
+                            $printerSettings['enable_cash_drawer'] == '1') {
+                            $printer->openDrawer();
+                        }
+                        
+                        $printer->close();
+                    } catch (Exception $e) {
+                        error_log("Auto print error: " . $e->getMessage());
+                        $printSuccess = false;
+                    }
+                }
+                
                 // Clear cart
                 unset($_SESSION['cart']);
                 
@@ -140,9 +239,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     'success' => true, 
                     'message' => 'Transaction completed successfully',
                     'transaction_number' => $saleData['transaction_number'],
+                    'sale_id' => $saleId,
                     'total' => $total,
                     'received' => $receivedAmount,
-                    'change' => $change
+                    'change' => $change,
+                    'auto_printed' => $autoPrint,
+                    'print_success' => $printSuccess,
+                    'receipt_data' => base64_encode(json_encode($receiptData))
                 ]);
                 
             } catch (Exception $e) {
@@ -701,7 +804,23 @@ $grandTotal = $cartTotal + $taxAmount;
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    alert(`Transaction completed!\nTransaction: ${data.transaction_number}\nTotal: ₱${data.total.toFixed(2)}\nReceived: ₱${data.received.toFixed(2)}\nChange: ₱${data.change.toFixed(2)}`);
+                    let message = `Transaction completed!\nTransaction: ${data.transaction_number}\nTotal: ₱${data.total.toFixed(2)}\nReceived: ₱${data.received.toFixed(2)}\nChange: ₱${data.change.toFixed(2)}`;
+                    
+                    if (data.auto_printed && data.print_success) {
+                        message += '\n\nReceipt printed automatically!';
+                    } else if (data.auto_printed && !data.print_success) {
+                        message += '\n\nAuto-print failed. Print manually?';
+                    }
+                    
+                    alert(message);
+                    
+                    // Show print options if not auto-printed or auto-print failed
+                    if (!data.auto_printed || !data.print_success) {
+                        if (confirm('Would you like to print a receipt?')) {
+                            printReceipt(data.receipt_data);
+                        }
+                    }
+                    
                     location.reload();
                 } else {
                     alert(data.message);
@@ -721,6 +840,51 @@ $grandTotal = $cartTotal + $taxAmount;
                     location.reload();
                 });
             }
+        }
+        
+        function printReceipt(receiptData = null, saleId = null) {
+            const printBtn = document.querySelector('.print-receipt-btn');
+            if (printBtn) {
+                const originalText = printBtn.innerHTML;
+                printBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Printing...';
+                printBtn.disabled = true;
+            }
+            
+            let body = '';
+            if (receiptData) {
+                body = `receipt_data=${receiptData}`;
+            } else if (saleId) {
+                body = `sale_id=${saleId}`;
+            } else {
+                alert('No receipt data available');
+                return;
+            }
+            
+            fetch('../api/print-receipt.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: body
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (printBtn) {
+                    printBtn.innerHTML = originalText;
+                    printBtn.disabled = false;
+                }
+                
+                if (data.success) {
+                    alert('Receipt printed successfully!');
+                } else {
+                    alert('Print failed: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                if (printBtn) {
+                    printBtn.innerHTML = originalText;
+                    printBtn.disabled = false;
+                }
+                alert('Print error: ' + error.message);
+            });
         }
 
         function newTransaction() {

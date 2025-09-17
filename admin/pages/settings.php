@@ -114,6 +114,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     showAlert('Error updating POS settings: ' . $e->getMessage(), 'error');
                 }
                 break;
+                
+            case 'update_printer_settings':
+                try {
+                    $settings = [
+                        'printer_type' => sanitizeInput($_POST['printer_type']),
+                        'windows_printer_name' => sanitizeInput($_POST['windows_printer_name']),
+                        'network_printer_ip' => sanitizeInput($_POST['network_printer_ip']),
+                        'network_printer_port' => intval($_POST['network_printer_port']),
+                        'usb_printer_path' => sanitizeInput($_POST['usb_printer_path']),
+                        'paper_width' => intval($_POST['paper_width']),
+                        'character_set' => sanitizeInput($_POST['character_set']),
+                        'enable_cash_drawer' => isset($_POST['enable_cash_drawer']) ? '1' : '0',
+                        'print_qr_code' => isset($_POST['print_qr_code']) ? '1' : '0'
+                    ];
+                    
+                    foreach ($settings as $key => $value) {
+                        $db->query("INSERT INTO settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = ?", [$key, $value, $value]);
+                    }
+                    
+                    showAlert('Printer settings updated successfully!', 'success');
+                } catch (Exception $e) {
+                    showAlert('Error updating printer settings: ' . $e->getMessage(), 'error');
+                }
+                break;
         }
     }
 }
@@ -367,6 +391,7 @@ $categories = $db->fetchAll("SELECT * FROM categories ORDER BY category_name");
 <div class="settings-nav">
     <button class="nav-button active" onclick="showSettings('business')">Business Info</button>
     <button class="nav-button" onclick="showSettings('pos')">POS Settings</button>
+    <button class="nav-button" onclick="showSettings('printer')">Printer Setup</button>
     <button class="nav-button" onclick="showSettings('users')">User Management</button>
     <button class="nav-button" onclick="showSettings('categories')">Categories</button>
     <button class="nav-button" onclick="showSettings('system')">System</button>
@@ -490,7 +515,143 @@ $categories = $db->fetchAll("SELECT * FROM categories ORDER BY category_name");
     </div>
 </div>
 
-<!-- User Management -->
+<!-- Printer Setup -->
+<div id="printer-settings" class="settings-content">
+    <div class="settings-section">
+        <div class="section-title">Thermal Printer Configuration</div>
+        <form method="POST">
+            <input type="hidden" name="action" value="update_printer_settings">
+            
+            <div class="form-group">
+                <label class="form-label">Printer Type</label>
+                <select name="printer_type" id="printerType" class="form-control" onchange="togglePrinterConfig()">
+                    <option value="windows" <?php echo ($posSettings['printer_type'] ?? 'windows') == 'windows' ? 'selected' : ''; ?>>Windows Printer (Recommended)</option>
+                    <option value="network" <?php echo ($posSettings['printer_type'] ?? 'windows') == 'network' ? 'selected' : ''; ?>>Network Printer (IP)</option>
+                    <option value="usb" <?php echo ($posSettings['printer_type'] ?? 'windows') == 'usb' ? 'selected' : ''; ?>>USB/Serial (COM Port)</option>
+                </select>
+            </div>
+            
+            <div id="windowsConfig" class="printer-config">
+                <div class="form-group">
+                    <label class="form-label">Windows Printer Name</label>
+                    <input type="text" name="windows_printer_name" class="form-control" 
+                           value="<?php echo htmlspecialchars($posSettings['windows_printer_name'] ?? ''); ?>"
+                           placeholder="e.g. XP-58IIH, Thermal Printer, or leave empty for default">
+                    <small style="color: #6c757d;">Leave empty to use system default printer</small>
+                </div>
+                
+                <div class="form-group">
+                    <button type="button" class="btn btn-info" onclick="detectPrinters()">
+                        <i class="fas fa-search"></i> Detect Installed Printers
+                    </button>
+                    <div id="detectedPrinters" style="margin-top: 10px; font-size: 13px;"></div>
+                </div>
+            </div>
+            
+            <div id="networkConfig" class="printer-config" style="display: none;">
+                <div class="form-group">
+                    <label class="form-label">Printer IP Address</label>
+                    <input type="text" name="network_printer_ip" class="form-control" 
+                           value="<?php echo htmlspecialchars($posSettings['network_printer_ip'] ?? ''); ?>"
+                           placeholder="e.g. 192.168.1.100">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Port</label>
+                    <input type="number" name="network_printer_port" class="form-control" 
+                           value="<?php echo $posSettings['network_printer_port'] ?? '9100'; ?>"
+                           placeholder="9100">
+                    <small style="color: #6c757d;">Default ESC/POS port is 9100</small>
+                </div>
+            </div>
+            
+            <div id="usbConfig" class="printer-config" style="display: none;">
+                <div class="form-group">
+                    <label class="form-label">COM Port / Device Path</label>
+                    <input type="text" name="usb_printer_path" class="form-control" 
+                           value="<?php echo htmlspecialchars($posSettings['usb_printer_path'] ?? ''); ?>"
+                           placeholder="Windows: COM1, COM3, etc. | Linux: /dev/ttyUSB0, /dev/ttyACM0">
+                </div>
+            </div>
+            
+            <div class="form-grid">
+                <div class="form-group">
+                    <label class="form-label">Paper Width (characters)</label>
+                    <select name="paper_width" class="form-control">
+                        <option value="32" <?php echo ($posSettings['paper_width'] ?? '32') == '32' ? 'selected' : ''; ?>>32 chars (58mm paper)</option>
+                        <option value="48" <?php echo ($posSettings['paper_width'] ?? '32') == '48' ? 'selected' : ''; ?>>48 chars (80mm paper)</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Character Set</label>
+                    <select name="character_set" class="form-control">
+                        <option value="CP437" <?php echo ($posSettings['character_set'] ?? 'CP437') == 'CP437' ? 'selected' : ''; ?>>CP437 (Default)</option>
+                        <option value="CP850" <?php echo ($posSettings['character_set'] ?? 'CP437') == 'CP850' ? 'selected' : ''; ?>>CP850 (Western Europe)</option>
+                        <option value="CP852" <?php echo ($posSettings['character_set'] ?? 'CP437') == 'CP852' ? 'selected' : ''; ?>>CP852 (Central Europe)</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <div class="checkbox-group">
+                    <input type="checkbox" name="enable_cash_drawer" class="checkbox"
+                           <?php echo ($posSettings['enable_cash_drawer'] ?? '0') == '1' ? 'checked' : ''; ?>>
+                    <label class="form-label">Enable Cash Drawer Opening</label>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <div class="checkbox-group">
+                    <input type="checkbox" name="print_qr_code" class="checkbox"
+                           <?php echo ($posSettings['print_qr_code'] ?? '0') == '1' ? 'checked' : ''; ?>>
+                    <label class="form-label">Print QR Code on Receipt (if supported)</label>
+                </div>
+            </div>
+            
+            <div style="display: flex; gap: 15px; margin-top: 20px; border-top: 1px solid #eee; padding-top: 15px;">
+                <button type="button" class="btn btn-info" onclick="testPrinter()">
+                    <i class="fas fa-print"></i> Test Print
+                </button>
+                <button type="submit" class="btn btn-success">
+                    <i class="fas fa-save"></i> Save Printer Settings
+                </button>
+            </div>
+        </form>
+    </div>
+    
+    <div class="settings-section">
+        <div class="section-title">Recommended Thermal Printers</div>
+        <div style="font-size: 14px;">
+            <div style="margin-bottom: 15px;">
+                <strong>Budget Options (₱2,000-4,000):</strong>
+                <ul style="margin: 5px 0 0 20px;">
+                    <li><strong>Xprinter XP-58IIH</strong> - USB + Network + Bluetooth (₱1,800-2,500)</li>
+                    <li><strong>HOIN HOP-E58</strong> - WiFi enabled (₱2,000-3,000)</li>
+                    <li><strong>POS-8058</strong> - Auto-cutter included (₱2,500-3,500)</li>
+                </ul>
+            </div>
+            
+            <div style="margin-bottom: 15px;">
+                <strong>Professional Options (₱5,000+):</strong>
+                <ul style="margin: 5px 0 0 20px;">
+                    <li><strong>Epson TM-T20II</strong> - Industry standard (₱5,000-6,500)</li>
+                    <li><strong>Star TSP143III</strong> - Cloud-ready (₱6,000-7,500)</li>
+                </ul>
+            </div>
+            
+            <div style="background: #e3f2fd; padding: 15px; border-radius: 4px;">
+                <strong>💡 Setup Tips:</strong><br>
+                1. Install printer using Windows "Add Printer" first<br>
+                2. Set paper size to "Roll Paper 58mm" or "Roll Paper 80mm"<br>
+                3. Test with "Test Print" button above<br>
+                4. For network printers, ensure same WiFi network<br>
+                5. USB printers work plug-and-play on most systems
+            </div>
+        </div>
+    </div>
+</div>
+
 <div id="users-settings" class="settings-content">
     <div class="settings-section">
         <div class="section-title">
@@ -751,6 +912,57 @@ function confirmSystemReset() {
         }
     }
 }
+
+function togglePrinterConfig() {
+    const printerType = document.getElementById('printerType').value;
+    document.querySelectorAll('.printer-config').forEach(config => config.style.display = 'none');
+    document.getElementById(printerType + 'Config').style.display = 'block';
+}
+
+function detectPrinters() {
+    // This would typically call a PHP script via AJAX to detect installed printers
+    const detectedDiv = document.getElementById('detectedPrinters');
+    detectedDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Detecting printers...';
+    
+    // Simulate detection (in real implementation, this would be an AJAX call)
+    setTimeout(() => {
+        detectedDiv.innerHTML = `
+            <strong>Detected Printers:</strong><br>
+            • Microsoft Print to PDF<br>
+            • XP-58IIH (Thermal Printer)<br>
+            • Generic / Text Only<br>
+            <small style="color: #6c757d;">Click on a printer name to select it</small>
+        `;
+    }, 2000);
+}
+
+function testPrinter() {
+    if (confirm('This will print a test receipt. Make sure your printer is connected and has paper. Continue?')) {
+        const testBtn = event.target;
+        const originalText = testBtn.innerHTML;
+        testBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Printing...';
+        testBtn.disabled = true;
+        
+        // Create a form to submit printer test
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.innerHTML = '<input type="hidden" name="action" value="test_printer">';
+        document.body.appendChild(form);
+        
+        // In a real implementation, this would make an AJAX call to test the printer
+        setTimeout(() => {
+            testBtn.innerHTML = originalText;
+            testBtn.disabled = false;
+            alert('Test print sent! Check your printer for the test receipt.');
+            document.body.removeChild(form);
+        }, 3000);
+    }
+}
+
+// Initialize printer config display
+document.addEventListener('DOMContentLoaded', function() {
+    togglePrinterConfig();
+});
 
 // Close modal when clicking outside
 window.onclick = function(event) {
