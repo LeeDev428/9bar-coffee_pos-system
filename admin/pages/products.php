@@ -25,6 +25,58 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'reorder_level' => intval($_POST['reorder_level'])
                     ];
                     
+                    // Handle uploaded image if any
+                    if (isset($_FILES['product_image'])) {
+                        $fileErr = $_FILES['product_image']['error'];
+                        if ($fileErr !== UPLOAD_ERR_NO_FILE) {
+                            if ($fileErr !== UPLOAD_ERR_OK) {
+                                // Map common upload errors to readable messages
+                                $errMsg = 'Image upload error (code ' . $fileErr . ')';
+                                switch ($fileErr) {
+                                    case UPLOAD_ERR_INI_SIZE:
+                                    case UPLOAD_ERR_FORM_SIZE:
+                                        $errMsg = 'Uploaded image exceeds the maximum allowed size.';
+                                        break;
+                                    case UPLOAD_ERR_PARTIAL:
+                                        $errMsg = 'Image was only partially uploaded.';
+                                        break;
+                                    case UPLOAD_ERR_NO_TMP_DIR:
+                                        $errMsg = 'Missing temporary folder on server.';
+                                        break;
+                                    case UPLOAD_ERR_CANT_WRITE:
+                                        $errMsg = 'Failed to write uploaded file to disk.';
+                                        break;
+                                }
+                                showAlert('Product image upload failed: ' . $errMsg, 'error');
+                            } else {
+                                $uploadDir = __DIR__ . '/../../assets/img/products/';
+                                if (!is_dir($uploadDir)) {
+                                    if (!mkdir($uploadDir, 0755, true)) {
+                                        showAlert('Failed to create upload directory for product images.', 'error');
+                                    }
+                                }
+
+                                $tmpName = $_FILES['product_image']['tmp_name'];
+                                $origName = basename($_FILES['product_image']['name']);
+                                $ext = pathinfo($origName, PATHINFO_EXTENSION);
+                                $allowed = ['jpg','jpeg','png','gif'];
+                                if (in_array(strtolower($ext), $allowed)) {
+                                    $safeName = preg_replace('/[^a-zA-Z0-9-_\.]/','', pathinfo($origName, PATHINFO_FILENAME));
+                                    $newName = $safeName . '-' . time() . '.' . $ext;
+                                    $destPath = $uploadDir . $newName;
+                                    if (is_uploaded_file($tmpName) && move_uploaded_file($tmpName, $destPath)) {
+                                        // store relative path for DB
+                                        $data['image_path'] = 'assets/img/products/' . $newName;
+                                    } else {
+                                        showAlert('Failed to move uploaded image to destination folder.', 'error');
+                                    }
+                                } else {
+                                    showAlert('Unsupported image type. Allowed: jpg, jpeg, png, gif.', 'error');
+                                }
+                            }
+                        }
+                    }
+
                     $productId = $productManager->addProduct($data);
                     showAlert('Product added successfully!', 'success');
                 } catch (Exception $e) {
@@ -45,6 +97,58 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     ];
                     
                     $productManager->updateProduct($productId, $data);
+
+                    // Handle image upload for edit (similar reporting as add)
+                    if (isset($_FILES['product_image'])) {
+                        $fileErr = $_FILES['product_image']['error'];
+                        if ($fileErr !== UPLOAD_ERR_NO_FILE) {
+                            if ($fileErr !== UPLOAD_ERR_OK) {
+                                $errMsg = 'Image upload error (code ' . $fileErr . ')';
+                                switch ($fileErr) {
+                                    case UPLOAD_ERR_INI_SIZE:
+                                    case UPLOAD_ERR_FORM_SIZE:
+                                        $errMsg = 'Uploaded image exceeds the maximum allowed size.';
+                                        break;
+                                    case UPLOAD_ERR_PARTIAL:
+                                        $errMsg = 'Image was only partially uploaded.';
+                                        break;
+                                    case UPLOAD_ERR_NO_TMP_DIR:
+                                        $errMsg = 'Missing temporary folder on server.';
+                                        break;
+                                    case UPLOAD_ERR_CANT_WRITE:
+                                        $errMsg = 'Failed to write uploaded file to disk.';
+                                        break;
+                                }
+                                showAlert('Product image upload failed: ' . $errMsg, 'error');
+                            } else {
+                                $uploadDir = __DIR__ . '/../../assets/img/products/';
+                                if (!is_dir($uploadDir)) {
+                                    if (!mkdir($uploadDir, 0755, true)) {
+                                        showAlert('Failed to create upload directory for product images.', 'error');
+                                    }
+                                }
+
+                                $tmpName = $_FILES['product_image']['tmp_name'];
+                                $origName = basename($_FILES['product_image']['name']);
+                                $ext = pathinfo($origName, PATHINFO_EXTENSION);
+                                $allowed = ['jpg','jpeg','png','gif'];
+                                if (in_array(strtolower($ext), $allowed)) {
+                                    $safeName = preg_replace('/[^a-zA-Z0-9-_\.]/','', pathinfo($origName, PATHINFO_FILENAME));
+                                    $newName = $safeName . '-' . time() . '.' . $ext;
+                                    $destPath = $uploadDir . $newName;
+                                    if (is_uploaded_file($tmpName) && move_uploaded_file($tmpName, $destPath)) {
+                                        $data['image_path'] = 'assets/img/products/' . $newName;
+                                        // update product with image
+                                        $productManager->updateProduct($productId, $data);
+                                    } else {
+                                        showAlert('Failed to move uploaded image to destination folder.', 'error');
+                                    }
+                                } else {
+                                    showAlert('Unsupported image type. Allowed: jpg, jpeg, png, gif.', 'error');
+                                }
+                            }
+                        }
+                    }
                     
                     // Update inventory if provided
                     if (isset($_POST['current_stock'])) {
@@ -121,6 +225,11 @@ $categories = $db->fetchAll("SELECT * FROM categories ORDER BY category_name");
 .btn-primary {
     background: #3498db;
     color: white;
+}
+
+/* Ensure action button text is visible */
+.btn-warning, .btn-danger, .btn-success {
+    color: white !important;
 }
 
 .btn-primary:hover {
@@ -359,6 +468,7 @@ tbody tr:hover {
         <table id="productsTable">
             <thead>
                 <tr>
+                    <th>Image</th>
                     <th>Product Name</th>
                     <th>Category</th>
                     <th>Barcode</th>
@@ -387,6 +497,24 @@ tbody tr:hover {
                     data-stock="<?php echo $stockStatus; ?>"
                     data-name="<?php echo strtolower($product['product_name']); ?>">
                     <td>
+                        <?php if (!empty($product['image_path'])): ?>
+                        <img src="<?php echo htmlspecialchars('../../' . $product['image_path']); ?>" alt="" style="width:50px;height:50px;object-fit:cover;border-radius:4px;">
+                        <?php else: ?>
+                        <div style="width:50px;height:50px;background:#f0f0f0;border-radius:4px;display:inline-block;"></div>
+                        <?php endif; ?>
+                        <div style="font-size:11px;color:#7f8c8d;margin-top:6px;">
+                            <div>path: <code><?php echo htmlspecialchars($product['image_path'] ?? ''); ?></code></div>
+                            <?php
+                                $imgDiskPath = __DIR__ . '/../../' . ($product['image_path'] ?? '');
+                                $exists = !empty($product['image_path']) && file_exists($imgDiskPath);
+                            ?>
+                            <div>exists on disk: <strong><?php echo $exists ? 'yes' : 'no'; ?></strong></div>
+                            <?php if (!empty($product['image_path'])): ?>
+                                <a href="<?php echo htmlspecialchars('../../' . $product['image_path']); ?>" target="_blank">open</a>
+                            <?php endif; ?>
+                        </div>
+                    </td>
+                    <td>
                         <strong><?php echo htmlspecialchars($product['product_name']); ?></strong>
                         <br><small style="color: #7f8c8d;"><?php echo htmlspecialchars($product['description']); ?></small>
                     </td>
@@ -405,10 +533,10 @@ tbody tr:hover {
                     </td>
                     <td>
                         <button class="btn btn-warning btn-sm" onclick="openEditModal(<?php echo htmlspecialchars(json_encode($product)); ?>)">
-                            <i class="fas fa-edit"></i>
+                            <i class="fas fa-edit"></i> Edit
                         </button>
                         <button class="btn btn-danger btn-sm" onclick="deleteProduct(<?php echo $product['product_id']; ?>, '<?php echo htmlspecialchars($product['product_name']); ?>')">
-                            <i class="fas fa-trash"></i>
+                            <i class="fas fa-trash"></i> Delete
                         </button>
                     </td>
                 </tr>
@@ -426,7 +554,7 @@ tbody tr:hover {
             <span class="close" onclick="closeModal('addModal')">&times;</span>
         </div>
         <div class="modal-body">
-            <form method="POST">
+            <form method="POST" enctype="multipart/form-data">
                 <input type="hidden" name="action" value="add_product">
                 
                 <div class="form-group">
@@ -489,6 +617,11 @@ tbody tr:hover {
                         <input type="number" name="reorder_level" class="form-control" value="10">
                     </div>
                 </div>
+
+                <div class="form-group">
+                    <label class="form-label">Product Image</label>
+                    <input type="file" name="product_image" class="form-control" accept="image/*">
+                </div>
                 
                 <div style="text-align: right; margin-top: 20px; border-top: 1px solid #eee; padding-top: 15px;">
                     <button type="button" class="btn" onclick="closeModal('addModal')" style="margin-right: 10px;">Cancel</button>
@@ -509,7 +642,7 @@ tbody tr:hover {
             <span class="close" onclick="closeModal('editModal')">&times;</span>
         </div>
         <div class="modal-body">
-            <form method="POST" id="editForm">
+            <form method="POST" id="editForm" enctype="multipart/form-data">
                 <input type="hidden" name="action" value="edit_product">
                 <input type="hidden" name="product_id" id="edit_product_id">
                 
@@ -571,6 +704,11 @@ tbody tr:hover {
                         <label class="form-label">Reorder Level</label>
                         <input type="number" name="reorder_level" id="edit_reorder_level" class="form-control">
                     </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Product Image (leave blank to keep existing)</label>
+                    <input type="file" name="product_image" class="form-control" accept="image/*">
                 </div>
                 
                 <div style="text-align: right; margin-top: 20px; border-top: 1px solid #eee; padding-top: 15px;">
