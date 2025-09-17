@@ -373,6 +373,58 @@ BEGIN
         critical_items as critical_items;
 END$$
 
+-- ===================================
+-- STOCK ADJUSTMENTS TABLE
+-- ===================================
+
+-- Stock Adjustments Table (for inventory management)
+CREATE TABLE `stock_adjustments` (
+    `adjustment_id` INT(11) NOT NULL AUTO_INCREMENT,
+    `product_id` INT(11) NOT NULL,
+    `adjustment_type` ENUM('add', 'subtract', 'set') NOT NULL,
+    `quantity_before` INT(11) NOT NULL DEFAULT 0,
+    `quantity_after` INT(11) NOT NULL DEFAULT 0,
+    `adjustment_quantity` INT(11) NOT NULL,
+    `reason` TEXT,
+    `adjusted_by` INT(11) NOT NULL,
+    `adjustment_date` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`adjustment_id`),
+    FOREIGN KEY (`product_id`) REFERENCES `products`(`product_id`) ON DELETE CASCADE,
+    FOREIGN KEY (`adjusted_by`) REFERENCES `users`(`user_id`) ON DELETE CASCADE,
+    INDEX `idx_product_id` (`product_id`),
+    INDEX `idx_adjustment_date` (`adjustment_date`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ===================================
+-- SYSTEM SETTINGS TABLE
+-- ===================================
+
+-- Settings Table (for system configuration)
+CREATE TABLE `settings` (
+    `setting_id` INT(11) NOT NULL AUTO_INCREMENT,
+    `setting_key` VARCHAR(100) NOT NULL UNIQUE,
+    `setting_value` TEXT,
+    `description` TEXT,
+    `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`setting_id`),
+    UNIQUE KEY `uk_setting_key` (`setting_key`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Insert default settings
+INSERT INTO `settings` (`setting_key`, `setting_value`, `description`) VALUES
+('business_name', '9Bar Coffee', 'Business name displayed on receipts and reports'),
+('business_address', 'Balamban, Cebu, Philippines', 'Business address'),
+('business_phone', '(032) 123-4567', 'Business phone number'),
+('business_email', 'info@9barcoffee.com', 'Business email address'),
+('tax_rate', '12.00', 'Tax rate percentage'),
+('currency', 'PHP', 'Currency code'),
+('receipt_header', 'Welcome to 9Bar Coffee!\nThank you for your visit!', 'Receipt header text'),
+('receipt_footer', 'Have a great day!\nPlease come again!', 'Receipt footer text'),
+('auto_print_receipt', '0', 'Auto print receipt after sale'),
+('allow_discounts', '1', 'Allow discounts in POS'),
+('require_customer_name', '0', 'Require customer name for sales'),
+('low_stock_alert', '10', 'Low stock alert threshold');
+
 DELIMITER ;
 
 -- Grant permissions (adjust as needed for your setup)
