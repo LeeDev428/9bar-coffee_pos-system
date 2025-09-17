@@ -379,45 +379,49 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Add to cart function
     function addToCart(productId, productName, price, quantity) {
-        // Post to current page explicitly so fetch resolves correctly
-        const postUrl = window.location.pathname + window.location.search;
-        fetch(postUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: `action=add_to_cart&product_id=${encodeURIComponent(productId)}&quantity=${encodeURIComponent(quantity)}`
-        })
-        .then(response => {
-            if (!response.ok) throw new Error('Network response was not ok');
-            return response.json();
-        })
+        const body = `action=add_to_cart&product_id=${encodeURIComponent(productId)}&quantity=${encodeURIComponent(quantity)}`;
+        postForm(body)
         .then(data => {
-            if (data.success) {
-                // Use server-returned cart if available to keep in sync
-                if (data.cart) {
-                    cart = data.cart;
-                } else {
-                    if (cart[productId]) {
-                        cart[productId].quantity += quantity;
-                    } else {
-                        cart[productId] = {
-                            product_id: productId,
-                            product_name: productName,
-                            price: price,
-                            quantity: quantity
-                        };
-                    }
-                }
+            if (data && data.success) {
+                if (data.cart) cart = data.cart;
                 updateCartDisplay();
-                showNotification(data.message, 'success');
+                showNotification(data.message || 'Item added', 'success');
             } else {
-                showNotification(data.message || 'Failed to add item', 'error');
+                showNotification((data && data.message) || 'Failed to add item', 'error');
             }
         })
         .catch(err => {
             console.error('Add to cart error:', err);
-            showNotification('Network error while adding item', 'error');
+            const msg = err && err.text ? `Server response: ${err.text.slice(0,200)}` : 'Network error while adding item';
+            showNotification(msg, 'error');
+        });
+    }
+
+    // POST helper that returns parsed JSON or throws an object with .text for debugging
+    function postForm(body) {
+        const postUrl = window.location.pathname + window.location.search;
+        console.log('Posting to', postUrl, 'cookies:', document.cookie);
+        return fetch(postUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            credentials: 'same-origin',
+            body
+        })
+        .then(response => {
+            // Try to read text first so we can show it on parse error
+            return response.text().then(text => {
+                if (!response.ok) {
+                    // include status and text
+                    throw { status: response.status, text };
+                }
+                try {
+                    const data = JSON.parse(text || '{}');
+                    return data;
+                } catch (e) {
+                    // return object that includes raw text for debugging
+                    throw { parseError: true, text };
+                }
+            });
         });
     }
     
@@ -480,45 +484,41 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Remove from cart
     function removeFromCart(productId) {
-        const postUrl = window.location.pathname + window.location.search;
-        fetch(postUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: `action=remove_from_cart&product_id=${encodeURIComponent(productId)}`
-        })
-        .then(response => response.json())
+        const body = `action=remove_from_cart&product_id=${encodeURIComponent(productId)}`;
+        postForm(body)
         .then(data => {
-            if (data.success) {
-                if (data.cart) {
-                    cart = data.cart;
-                } else {
-                    delete cart[productId];
-                }
+            if (data && data.success) {
+                if (data.cart) cart = data.cart; else delete cart[productId];
                 updateCartDisplay();
-                showNotification(data.message, 'success');
+                showNotification(data.message || 'Item removed', 'success');
+            } else {
+                showNotification((data && data.message) || 'Failed to remove item', 'error');
             }
+        })
+        .catch(err => {
+            console.error('Remove from cart error:', err);
+            const msg = err && err.text ? `Server response: ${err.text.slice(0,200)}` : 'Network error while removing item';
+            showNotification(msg, 'error');
         });
     }
     
     // Clear cart
     clearCartBtn.addEventListener('click', function() {
         if (confirm('Are you sure you want to clear the cart?')) {
-            fetch('', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                },
-                body: 'action=clear_cart'
-            })
-            .then(response => response.json())
+            postForm('action=clear_cart')
             .then(data => {
-                if (data.success) {
+                if (data && data.success) {
                     cart = data.cart || {};
                     updateCartDisplay();
-                    showNotification(data.message, 'success');
+                    showNotification(data.message || 'Cart cleared', 'success');
+                } else {
+                    showNotification((data && data.message) || 'Failed to clear cart', 'error');
                 }
+            })
+            .catch(err => {
+                console.error('Clear cart error:', err);
+                const msg = err && err.text ? `Server response: ${err.text.slice(0,200)}` : 'Network error while clearing cart';
+                showNotification(msg, 'error');
             });
         }
     });
@@ -569,35 +569,28 @@ document.addEventListener('DOMContentLoaded', function() {
     processPaymentBtn.addEventListener('click', function() {
         const paymentMethod = paymentMethodSelect.value;
         const receivedAmount = parseFloat(receivedAmountInput.value) || 0;
-        
+
         this.disabled = true;
         this.innerHTML = '<i class="spinner-border spinner-border-sm me-1"></i> Processing...';
-        
-        fetch('', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: `action=process_sale&payment_method=${paymentMethod}&received_amount=${receivedAmount}`
-        })
-        .then(response => response.json())
+
+        const body = `action=process_sale&payment_method=${encodeURIComponent(paymentMethod)}&received_amount=${encodeURIComponent(receivedAmount)}`;
+        postForm(body)
         .then(data => {
-            if (data.success) {
+            if (data && data.success) {
                 cart = {};
                 updateCartDisplay();
-                
-                // Reset form
                 receivedAmountInput.value = '';
                 changeAmountDiv.style.display = 'none';
-                
                 showNotification('Sale completed successfully!', 'success');
-                
-                if (data.change > 0) {
-                    alert(`Change: ₱${data.change.toFixed(2)}`);
-                }
+                if (data.change > 0) alert(`Change: ₱${data.change.toFixed(2)}`);
             } else {
-                showNotification(data.message, 'error');
+                showNotification((data && data.message) || 'Failed to process sale', 'error');
             }
+        })
+        .catch(err => {
+            console.error('Process sale error:', err);
+            const msg = err && err.text ? `Server response: ${err.text.slice(0,200)}` : 'Network error while processing sale';
+            showNotification(msg, 'error');
         })
         .finally(() => {
             this.disabled = false;
