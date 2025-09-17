@@ -22,17 +22,29 @@ class ProductManager {
             $this->db->beginTransaction();
             
             // Insert product
-            $productId = $this->db->query("
-                INSERT INTO products (product_name, category_id, description, price, cost_price, barcode, status) 
-                VALUES (?, ?, ?, ?, ?, ?, 'active')
-            ", [
-                $data['product_name'],
-                $data['category_id'],
-                $data['description'],
-                $data['price'],
-                $data['cost_price'],
-                $data['barcode']
-            ]);
+            // support optional image_path
+            $imagePath = $data['image_path'] ?? null;
+            if ($imagePath) {
+                $this->db->query("INSERT INTO products (product_name, category_id, description, price, cost_price, barcode, image_path, status) VALUES (?, ?, ?, ?, ?, ?, ?, 'active')", [
+                    $data['product_name'],
+                    $data['category_id'],
+                    $data['description'],
+                    $data['price'],
+                    $data['cost_price'],
+                    $data['barcode'],
+                    $imagePath
+                ]);
+            } else {
+                $this->db->query("INSERT INTO products (product_name, category_id, description, price, cost_price, barcode, status) VALUES (?, ?, ?, ?, ?, ?, 'active')", [
+                    $data['product_name'],
+                    $data['category_id'],
+                    $data['description'],
+                    $data['price'],
+                    $data['cost_price'],
+                    $data['barcode']
+                ]);
+            }
+            $productId = $this->db->lastInsertId();
             
             // Insert inventory record
             $this->db->query("
@@ -59,19 +71,35 @@ class ProductManager {
      * Update existing product
      */
     public function updateProduct($productId, $data) {
-        return $this->db->query("
-            UPDATE products 
-            SET product_name = ?, category_id = ?, description = ?, price = ?, cost_price = ?, barcode = ?
-            WHERE product_id = ?
-        ", [
-            $data['product_name'],
-            $data['category_id'],
-            $data['description'],
-            $data['price'],
-            $data['cost_price'],
-            $data['barcode'],
-            $productId
-        ]);
+        // If image_path is provided, update it as well
+        if (isset($data['image_path'])) {
+            return $this->db->query(
+                "UPDATE products SET product_name = ?, category_id = ?, description = ?, price = ?, cost_price = ?, barcode = ?, image_path = ?, updated_at = CURRENT_TIMESTAMP WHERE product_id = ?",
+                [
+                    $data['product_name'],
+                    $data['category_id'],
+                    $data['description'],
+                    $data['price'],
+                    $data['cost_price'],
+                    $data['barcode'],
+                    $data['image_path'],
+                    $productId
+                ]
+            );
+        }
+
+        return $this->db->query(
+            "UPDATE products SET product_name = ?, category_id = ?, description = ?, price = ?, cost_price = ?, barcode = ?, updated_at = CURRENT_TIMESTAMP WHERE product_id = ?",
+            [
+                $data['product_name'],
+                $data['category_id'],
+                $data['description'],
+                $data['price'],
+                $data['cost_price'],
+                $data['barcode'],
+                $productId
+            ]
+        );
     }
     
     /**
