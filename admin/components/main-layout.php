@@ -6,15 +6,20 @@ require_once '../../includes/functions.php';
 require_once '../../includes/ProductManager.php';
 require_once '../../includes/SalesManager.php';
 
-// Check if user is authenticated and is admin
-requireLogin();
-if (!isAdmin()) {
-    redirect('/login.php');
-    exit;
+// Initialize database and auth
+try {
+    $db = new Database();
+    $auth = new Auth($db);
+} catch (Exception $e) {
+    die("Database connection failed: " . $e->getMessage());
 }
 
+// Check if user is authenticated and is admin
+$auth->requireLogin();
+$auth->requireAdmin();
+
 // Get user info
-$currentUser = getCurrentUser();
+$currentUser = $auth->getCurrentUser();
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -219,7 +224,7 @@ $currentUser = getCurrentUser();
         </div>
         
         <div class="user-info">
-            <div><i class="bi bi-person-circle"></i> <?php echo htmlspecialchars($currentUser['first_name'] . ' ' . $currentUser['last_name']); ?></div>
+            <div><i class="bi bi-person-circle"></i> <?php echo htmlspecialchars($currentUser['full_name']); ?></div>
             <small style="opacity: 0.7;">Administrator</small>
         </div>
         
