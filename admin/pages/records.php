@@ -75,15 +75,22 @@ $staffPerformance = $db->fetchAll("
 ", [$startDate, $endDate]);
 
 // Recent Transactions
+// Note: some database schemas may not have a `customer_name` column on `sales`.
+// Use COALESCE to ensure query does not fail if customer_name is NULL, and
+// select only known columns to avoid "Unknown column" errors.
 $recentTransactions = $db->fetchAll("
-    SELECT s.sale_id, s.sale_date, s.total_amount, s.payment_method,
-           u.username, s.customer_name,
-           COUNT(si.product_id) as item_count
+    SELECT s.sale_id,
+           s.sale_date,
+           s.total_amount,
+           s.payment_method,
+           u.username,
+           NULL AS customer_name,
+           (
+               SELECT COUNT(*) FROM sale_items si2 WHERE si2.sale_id = s.sale_id
+           ) as item_count
     FROM sales s
     JOIN users u ON s.user_id = u.user_id
-    LEFT JOIN sale_items si ON s.sale_id = si.sale_id
     WHERE DATE(s.sale_date) BETWEEN ? AND ?
-    GROUP BY s.sale_id
     ORDER BY s.sale_date DESC
     LIMIT 50
 ", [$startDate, $endDate]);
