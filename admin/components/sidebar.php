@@ -3,15 +3,13 @@
 $current_page = basename($_SERVER['PHP_SELF'], '.php');
 ?>
 <div class="sidebar">
-    <div class="sidebar-header">
-        <div class="sidebar-user">
-            <div class="user-avatar">
-                <i class="fas fa-user"></i>
-            </div>
-            <div class="user-info">
-                <h4><?php echo htmlspecialchars($user['full_name']); ?></h4>
-                <p><?php echo ucfirst($user['role']); ?></p>
-            </div>
+    <div class="sidebar-user">
+        <div class="user-avatar">
+            <i class="fas fa-user"></i>
+        </div>
+        <div class="user-info">
+            <h4><?php echo htmlspecialchars($user['full_name']); ?></h4>
+            <p>Administrator</p>
         </div>
     </div>
     
