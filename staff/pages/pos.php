@@ -350,7 +350,22 @@ if (!isset($_SESSION['cart'])) {
 <!-- POS JavaScript -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    let cart = <?php echo json_encode($_SESSION['cart'] ?? []); ?>;
+    // Use localStorage for optimistic UI; initialize from localStorage or fall back to server session
+    function loadLocalCart() {
+        try {
+            const raw = localStorage.getItem('pos_cart');
+            return raw ? JSON.parse(raw) : <?php echo json_encode($_SESSION['cart'] ?? []); ?>;
+        } catch (e) {
+            console.error('Failed to parse local cart', e);
+            return <?php echo json_encode($_SESSION['cart'] ?? []); ?>;
+        }
+    }
+
+    function saveLocalCart(cartObj) {
+        try { localStorage.setItem('pos_cart', JSON.stringify(cartObj)); } catch (e) { console.error('Failed to save local cart', e); }
+    }
+
+    let cart = loadLocalCart();
     
     // DOM Elements
     const cartItemsContainer = document.getElementById('cartItems');
@@ -377,21 +392,42 @@ document.addEventListener('DOMContentLoaded', function() {
         addToCart(productId, productName, price, 1);
     });
     
-    // Add to cart function
+    // Add to cart with optimistic localStorage update and server sync
     function addToCart(productId, productName, price, quantity) {
+        // Snapshot for rollback
+        const snapshot = JSON.parse(JSON.stringify(cart));
+
+        // Optimistic update locally
+        if (cart[productId]) cart[productId].quantity += quantity;
+        else cart[productId] = { product_id: productId, product_name: productName, price: parseFloat(price) || 0, quantity };
+        saveLocalCart(cart);
+        updateCartDisplay();
+
+        // Send to server
         const body = `action=add_to_cart&product_id=${encodeURIComponent(productId)}&quantity=${encodeURIComponent(quantity)}`;
         postForm(body)
         .then(data => {
             if (data && data.success) {
-                if (data.cart) cart = data.cart;
-                updateCartDisplay();
+                // Accept server canonical cart if provided
+                if (data.cart) {
+                    cart = data.cart;
+                    saveLocalCart(cart);
+                    updateCartDisplay();
+                }
                 showNotification(data.message || 'Item added', 'success');
             } else {
+                // rollback
+                cart = snapshot;
+                saveLocalCart(cart);
+                updateCartDisplay();
                 showNotification((data && data.message) || 'Failed to add item', 'error');
             }
         })
         .catch(err => {
             console.error('Add to cart error:', err);
+            cart = snapshot; // rollback
+            saveLocalCart(cart);
+            updateCartDisplay();
             const msg = err && err.text ? `Server response: ${err.text.slice(0,200)}` : 'Network error while adding item';
             showNotification(msg, 'error');
         });
@@ -485,18 +521,25 @@ document.addEventListener('DOMContentLoaded', function() {
     // Remove from cart
     function removeFromCart(productId) {
         const body = `action=remove_from_cart&product_id=${encodeURIComponent(productId)}`;
+        // Optimistic remove
+        const snapshot = JSON.parse(JSON.stringify(cart));
+        if (cart[productId]) delete cart[productId];
+        saveLocalCart(cart);
+        updateCartDisplay();
+
         postForm(body)
         .then(data => {
             if (data && data.success) {
-                if (data.cart) cart = data.cart; else delete cart[productId];
-                updateCartDisplay();
+                if (data.cart) { cart = data.cart; saveLocalCart(cart); updateCartDisplay(); }
                 showNotification(data.message || 'Item removed', 'success');
             } else {
+                cart = snapshot; saveLocalCart(cart); updateCartDisplay();
                 showNotification((data && data.message) || 'Failed to remove item', 'error');
             }
         })
         .catch(err => {
             console.error('Remove from cart error:', err);
+            cart = snapshot; saveLocalCart(cart); updateCartDisplay();
             const msg = err && err.text ? `Server response: ${err.text.slice(0,200)}` : 'Network error while removing item';
             showNotification(msg, 'error');
         });
@@ -505,18 +548,27 @@ document.addEventListener('DOMContentLoaded', function() {
     // Clear cart
     clearCartBtn.addEventListener('click', function() {
         if (confirm('Are you sure you want to clear the cart?')) {
+            // Optimistic clear
+            const snapshot = JSON.parse(JSON.stringify(cart));
+            cart = {};
+            saveLocalCart(cart);
+            updateCartDisplay();
+
             postForm('action=clear_cart')
             .then(data => {
                 if (data && data.success) {
                     cart = data.cart || {};
+                    saveLocalCart(cart);
                     updateCartDisplay();
                     showNotification(data.message || 'Cart cleared', 'success');
                 } else {
+                    cart = snapshot; saveLocalCart(cart); updateCartDisplay();
                     showNotification((data && data.message) || 'Failed to clear cart', 'error');
                 }
             })
             .catch(err => {
                 console.error('Clear cart error:', err);
+                cart = snapshot; saveLocalCart(cart); updateCartDisplay();
                 const msg = err && err.text ? `Server response: ${err.text.slice(0,200)}` : 'Network error while clearing cart';
                 showNotification(msg, 'error');
             });
