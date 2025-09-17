@@ -3,13 +3,6 @@
 $page_title = 'SYSTEM SETTINGS';
 include '../components/main-layout.php';
 
-// Handle logout
-if (isset($_GET['action']) && $_GET['action'] === 'logout') {
-    $auth->logout();
-    header('Location: ../../login.php');
-    exit();
-}
-
 // Handle form submissions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['action'])) {
