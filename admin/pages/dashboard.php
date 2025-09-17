@@ -3,6 +3,38 @@
 $page_title = 'DASHBOARD';
 include '../components/main-layout.php';
 
+// Ensure content is offset from sidebar and charts are responsive
+?>
+<style>
+     /* Adjust main content so it doesn't overlap the sidebar (match sidebar width)
+         Use left padding so the inner container can remain centered in the viewport */
+    /* smaller padding-left keeps content closer to sidebar while remaining centered */
+    /* Align content flowing right after the sidebar (sidebar width: 180px) */
+     /* Remove extra page-level padding so content sits next to the sidebar
+         The layout's `.main-content` already reserves space for the fixed sidebar */
+     .main-content-wrapper { padding-left: 0; padding-top: 20px; padding-bottom: 20px; }
+     .main-inner { max-width: none; margin: 0; padding-right: 24px; }
+    /* Chart card sizing */
+    .chart-card { background: #fff; border-radius: 8px; padding: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.04); min-height: 360px; }
+    .charts-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 24px; align-items: flex-start; width: 100%; }
+    .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; margin-bottom: 18px; }
+    .stat-card { padding: 18px; border-radius: 8px; color: #fff; }
+    .stats-grid { align-items: center; }
+    .chart-card canvas { width: 100% !important; height: 340px !important; }
+    /* Specific chart sizes */
+    #dailySalesChart, #topProductsChart { height: 320px !important; }
+    /* Ensure tables and cards expand to container width */
+    .card, .table-responsive { width: 100%; }
+    /* Give space above tables so they don't collide with charts */
+    .table-responsive { margin-top: 18px; }
+    @media(max-width: 1200px) { .main-content-wrapper { padding-left: 60px; } }
+    @media(max-width: 992px) { .charts-grid { grid-template-columns: 1fr; } .main-content-wrapper { padding-left: 0; } }
+</style>
+
+<div class="main-content-wrapper">
+    <div class="main-inner">
+<?php
+
 // Initialize managers
 $productManager = new ProductManager($db);
 $salesManager = new SalesManager($db);
@@ -20,32 +52,32 @@ $chartData = [23, 14, 11, 10, 8];
 
 <!-- Dashboard Stats Cards -->
 <div class="stats-grid">
-    <div class="stat-card">
-        <div class="stat-icon">
+    <div class="stat-card" style="background:#2E8B57;color:#fff;">
+        <div class="stat-icon" style="color:rgba(255,255,255,0.9);">
             <i class="bi bi-currency-dollar"></i>
         </div>
         <div class="stat-title">Daily Sales</div>
         <div class="stat-value">₱<?php echo number_format($todaysSales, 2); ?></div>
     </div>
 
-    <div class="stat-card">
-        <div class="stat-icon">
+    <div class="stat-card" style="background:#FF8C00;color:#fff;">
+        <div class="stat-icon" style="color:rgba(255,255,255,0.95);">
             <i class="bi bi-box-seam"></i>
         </div>
         <div class="stat-title">Quantity Sold Today</div>
         <div class="stat-value"><?php echo number_format($todaysQuantity); ?></div>
     </div>
 
-    <div class="stat-card">
-        <div class="stat-icon">
+    <div class="stat-card" style="background:#6A5ACD;color:#fff;">
+        <div class="stat-icon" style="color:rgba(255,255,255,0.95);">
             <i class="bi bi-grid-3x3-gap"></i>
         </div>
         <div class="stat-title">Total Product</div>
         <div class="stat-value"><?php echo number_format($totalProducts); ?></div>
     </div>
 
-    <div class="stat-card">
-        <div class="stat-icon">
+    <div class="stat-card" style="background:#20B2AA;color:#fff;">
+        <div class="stat-icon" style="color:rgba(255,255,255,0.95);">
             <i class="bi bi-exclamation-triangle"></i>
         </div>
         <div class="stat-title">Critical Items</div>
@@ -76,8 +108,14 @@ const salesChart = new Chart(salesCtx, {
         datasets: [{
             label: 'Quantity Sold',
             data: <?php echo json_encode($chartData); ?>,
-            backgroundColor: '#7fb3c3', /* Matching teal color */
-            borderColor: '#5a9aac',
+            backgroundColor: [
+                '#20B2AA', /* teal */
+                '#FF8C00', /* orange */
+                '#6A5ACD', /* purple */
+                '#FFD700', /* gold */
+                '#5DADE2'  /* sky blue */
+            ],
+            borderColor: ['#1F8F85','#CC7000','#593FB8','#B68900','#4B9FD6'],
             borderWidth: 1
         }]
     },
@@ -112,16 +150,16 @@ const salesChart = new Chart(salesCtx, {
 // Pie Chart
 const categoryCtx = document.getElementById('categoryChart').getContext('2d');
 const categoryChart = new Chart(categoryCtx, {
-    type: 'pie',
+    type: 'doughnut',
     data: {
         labels: ['Iced Coffee', 'Hot Coffee', 'Fruit Tea', 'Milktea'],
         datasets: [{
             data: [35, 25, 25, 15],
             backgroundColor: [
-                '#7fb3c3', /* Iced Coffee - main teal */
-                '#95c5d1', /* Hot Coffee - lighter teal */
-                '#b8d4df', /* Fruit Tea - even lighter */
-                '#dae8ed'  /* Milktea - lightest */
+                '#20B2AA', /* Iced Coffee - teal */
+                '#FF8C00', /* Hot Coffee - orange */
+                '#6A5ACD', /* Fruit Tea - purple */
+                '#58D68D'  /* Milktea - light green */
             ],
             borderWidth: 2,
             borderColor: '#ffffff'
@@ -130,39 +168,32 @@ const categoryChart = new Chart(categoryCtx, {
     options: {
         responsive: true,
         maintainAspectRatio: false,
+        cutout: '60%',
         plugins: {
             legend: {
-                position: 'right',
+                position: 'bottom',
                 labels: {
-                    padding: 15,
+                    padding: 8,
                     usePointStyle: true,
-                    font: {
-                        size: 11
-                    }
+                    boxWidth: 12,
+                    font: { size: 11 }
                 }
             }
         }
     }
 });
 </script>
-            <div class="card-header">
-                <h5 class="card-title mb-0">Daily Sales</h5>
-            </div>
-            <div class="card-body">
-                <canvas id="dailySalesChart"></canvas>
-            </div>
-        </div>
+
+<!-- Daily Sales & Top Products Grid -->
+<div class="charts-grid" style="margin-top: 24px;">
+    <div class="chart-card">
+        <div class="chart-title">Daily Sales</div>
+        <canvas id="dailySalesChart"></canvas>
     </div>
-    
-    <div class="col-md-4 mb-4">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="card-title mb-0">Top Products</h5>
-            </div>
-            <div class="card-body">
-                <canvas id="topProductsChart"></canvas>
-            </div>
-        </div>
+
+    <div class="chart-card">
+        <div class="chart-title">Top Products</div>
+        <canvas id="topProductsChart"></canvas>
     </div>
 </div>
 
@@ -187,8 +218,9 @@ const categoryChart = new Chart(categoryCtx, {
                         </thead>
                         <tbody>
                             <?php
+                            // Recent sales: some schemas may not have `customer_name`. Select safely.
                             $recentSales = $db->fetchAll("
-                                SELECT transaction_number, customer_name, total_amount, sale_date, payment_status 
+                                SELECT transaction_number, NULL AS customer_name, total_amount, sale_date, payment_status 
                                 FROM sales 
                                 ORDER BY sale_date DESC 
                                 LIMIT 10
@@ -258,12 +290,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 label: 'Daily Sales (₱)',
                 data: <?php echo json_encode($amounts); ?>,
                 borderColor: '#8B4513',
-                backgroundColor: 'rgba(139, 69, 19, 0.1)',
-                tension: 0.1
+                backgroundColor: 'rgba(139, 69, 19, 0.08)',
+                tension: 0.15,
+                borderWidth: 3,
+                pointRadius: 4,
+                pointBackgroundColor: '#8B4513'
             }]
         },
         options: {
             responsive: true,
+            maintainAspectRatio: false,
+            elements: { line: { fill: true } },
             scales: {
                 y: {
                     beginAtZero: true,
@@ -322,4 +359,6 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 
+    </div>
+</div>
 <?php include '../components/layout-end.php'; ?>
