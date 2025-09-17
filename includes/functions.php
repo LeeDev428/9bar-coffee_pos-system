@@ -194,18 +194,33 @@ class ProductManager {
             $this->db->getConnection()->beginTransaction();
             
             // Insert product
-            $sql = "INSERT INTO products (product_name, category_id, description, price, cost_price, barcode, status)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)";
-            
-            $this->db->query($sql, [
-                $data['product_name'],
-                $data['category_id'],
-                $data['description'],
-                $data['price'],
-                $data['cost_price'],
-                $data['barcode'],
-                'active'
-            ]);
+            // support optional image_path
+            if (!empty($data['image_path'])) {
+                $sql = "INSERT INTO products (product_name, category_id, description, price, cost_price, barcode, image_path, status)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+                $this->db->query($sql, [
+                    $data['product_name'],
+                    $data['category_id'],
+                    $data['description'],
+                    $data['price'],
+                    $data['cost_price'],
+                    $data['barcode'],
+                    $data['image_path'],
+                    'active'
+                ]);
+            } else {
+                $sql = "INSERT INTO products (product_name, category_id, description, price, cost_price, barcode, status)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)";
+                $this->db->query($sql, [
+                    $data['product_name'],
+                    $data['category_id'],
+                    $data['description'],
+                    $data['price'],
+                    $data['cost_price'],
+                    $data['barcode'],
+                    'active'
+                ]);
+            }
             
             $productId = $this->db->lastInsertId();
             
@@ -231,11 +246,29 @@ class ProductManager {
     }
     
     public function updateProduct($productId, $data) {
+        // If image_path provided, include it in the update
+        if (isset($data['image_path'])) {
+            $sql = "UPDATE products 
+                    SET product_name = ?, category_id = ?, description = ?, 
+                        price = ?, cost_price = ?, barcode = ?, image_path = ?, updated_at = CURRENT_TIMESTAMP
+                    WHERE product_id = ?";
+            return $this->db->query($sql, [
+                $data['product_name'],
+                $data['category_id'],
+                $data['description'],
+                $data['price'],
+                $data['cost_price'],
+                $data['barcode'],
+                $data['image_path'],
+                $productId
+            ]);
+        }
+
         $sql = "UPDATE products 
                 SET product_name = ?, category_id = ?, description = ?, 
                     price = ?, cost_price = ?, barcode = ?, updated_at = CURRENT_TIMESTAMP
                 WHERE product_id = ?";
-        
+
         return $this->db->query($sql, [
             $data['product_name'],
             $data['category_id'],
