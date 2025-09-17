@@ -38,10 +38,10 @@ if (isset($_GET['action']) && $_GET['action'] === 'logout') {
 </head>
 <body>
     <div class="dashboard-container">
-        <?php include 'components/sidebar.php'; ?>
+        <?php include 'sidebar.php'; ?>
         
         <div class="main-content">
-            <?php include 'components/header.php'; ?>
+            <?php include 'header.php'; ?>
             
             <div class="content">
                 <?php displayAlert(); ?>
