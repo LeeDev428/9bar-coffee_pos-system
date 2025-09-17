@@ -227,12 +227,12 @@ INSERT INTO `inventory` (`product_id`, `current_stock`, `minimum_stock`, `maximu
 (10, 6, 2, 20, 5);
 
 -- Insert Sample Sales
-INSERT INTO `sales` (`transaction_number`, `user_id`, `customer_name`, `total_amount`, `payment_method`, `sale_date`) VALUES
-('TXN-20250917-001', 1, 'John Doe', 320.00, 'cash', '2025-09-17 08:30:00'),
-('TXN-20250917-002', 2, 'Jane Smith', 250.00, 'card', '2025-09-17 09:15:00'),
-('TXN-20250917-003', 1, 'Mike Johnson', 180.00, 'cash', '2025-09-17 10:00:00'),
-('TXN-20250917-004', 2, 'Sarah Wilson', 410.00, 'digital_wallet', '2025-09-17 11:30:00'),
-('TXN-20250917-005', 1, 'David Brown', 290.00, 'card', '2025-09-17 13:45:00');
+INSERT INTO `sales` (`transaction_number`, `user_id`, `total_amount`, `payment_method`, `sale_date`) VALUES
+('TXN-20250917-001', 1,  320.00, 'cash', '2025-09-17 08:30:00'),
+('TXN-20250917-002', 2,  250.00, 'card', '2025-09-17 09:15:00'),
+('TXN-20250917-003', 1,  180.00, 'cash', '2025-09-17 10:00:00'),
+('TXN-20250917-004', 2,  410.00, 'digital_wallet', '2025-09-17 11:30:00'),
+('TXN-20250917-005', 1, 290.00, 'card', '2025-09-17 13:45:00');
 
 -- Insert Sample Sale Items
 INSERT INTO `sale_items` (`sale_id`, `product_id`, `quantity`, `unit_price`, `total_price`, `subtotal`) VALUES
