@@ -9,29 +9,44 @@ $endDate = $_GET['end_date'] ?? date('Y-m-d');
 $search = $_GET['q'] ?? '';
 
 // Build query with optional search
-$params = [$startDate, $endDate];
+$baseParams = [$startDate, $endDate];
 $searchSql = '';
 if ($search) {
     $searchSql = "AND (p.product_name LIKE ? OR s.sale_id LIKE ? OR u.username LIKE ? )";
     $searchTerm = '%' . $search . '%';
-    $params[] = $searchTerm;
-    $params[] = $searchTerm;
-    $params[] = $searchTerm;
+    $baseParams[] = $searchTerm;
+    $baseParams[] = $searchTerm;
+    $baseParams[] = $searchTerm;
 }
 
-// Transactions query
-$transactions = $db->fetchAll(
-    "SELECT s.sale_id, s.sale_date, s.total_amount, s.payment_method, u.username,
-            (SELECT COUNT(*) FROM sale_items si WHERE si.sale_id = s.sale_id) as item_count
+// Pagination
+$perPage = 20;
+$page = max(1, intval($_GET['page'] ?? 1));
+$offset = ($page - 1) * $perPage;
+
+// Get total count (distinct sales)
+$countSql = "SELECT COUNT(DISTINCT s.sale_id) as cnt
+    FROM sales s
+    LEFT JOIN sale_items si ON s.sale_id = si.sale_id
+    LEFT JOIN products p ON si.product_id = p.product_id
+    JOIN users u ON s.user_id = u.user_id
+    WHERE DATE(s.sale_date) BETWEEN ? AND ? " . $searchSql;
+$totalCount = (int) $db->fetchValue($countSql, $baseParams);
+
+// Transactions query with LIMIT for current page
+$querySql = "SELECT s.sale_id, s.sale_date, s.total_amount, s.payment_method, u.username,
+            (SELECT COUNT(*) FROM sale_items si2 WHERE si2.sale_id = s.sale_id) as item_count
      FROM sales s
      JOIN users u ON s.user_id = u.user_id
      LEFT JOIN sale_items si ON s.sale_id = si.sale_id
      LEFT JOIN products p ON si.product_id = p.product_id
      WHERE DATE(s.sale_date) BETWEEN ? AND ? " . $searchSql . "
      GROUP BY s.sale_id
-     ORDER BY s.sale_date DESC",
-    $params
-);
+     ORDER BY s.sale_date DESC
+     LIMIT ? , ?";
+
+$params = array_merge($baseParams, [$offset, $perPage]);
+$transactions = $db->fetchAll($querySql, $params);
 
 // Today's sales and monthly sales
 $today = date('Y-m-d');
@@ -41,11 +56,24 @@ $monthlySales = $db->fetchOne("SELECT IFNULL(SUM(total_amount),0) as total FROM 
 
 // Export to CSV handling (simple)
 if (isset($_GET['export']) && $_GET['export'] === 'csv') {
+    // Fetch full filtered set (no pagination)
+    $exportSql = "SELECT s.sale_id, s.sale_date, s.total_amount, s.payment_method, u.username,
+            (SELECT COUNT(*) FROM sale_items si2 WHERE si2.sale_id = s.sale_id) as item_count
+     FROM sales s
+     JOIN users u ON s.user_id = u.user_id
+     LEFT JOIN sale_items si ON s.sale_id = si.sale_id
+     LEFT JOIN products p ON si.product_id = p.product_id
+     WHERE DATE(s.sale_date) BETWEEN ? AND ? " . $searchSql . "
+     GROUP BY s.sale_id
+     ORDER BY s.sale_date DESC";
+
+    $exportRows = $db->fetchAll($exportSql, $baseParams);
+
     header('Content-Type: text/csv');
     header('Content-Disposition: attachment; filename="sales_export_' . $startDate . '_to_' . $endDate . '.csv"');
     $out = fopen('php://output', 'w');
     fputcsv($out, ['Sale ID', 'Date', 'Staff', 'Items', 'Payment', 'Amount']);
-    foreach ($transactions as $t) {
+    foreach ($exportRows as $t) {
         fputcsv($out, [$t['sale_id'], $t['sale_date'], $t['username'], $t['item_count'], $t['payment_method'], $t['total_amount']]);
     }
     fclose($out);
@@ -65,29 +93,35 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
 </style>
 
 <div class="records-header" style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
-    <!-- Left: filters -->
-    <div style="display:flex; gap:8px; align-items:center;">
-        <label style="color:#fff; display:none;">From</label>
-        <input type="date" id="startDate" value="<?php echo $startDate; ?>" class="form-control" style="width:150px;">
-        <span style="color:#fff; margin:0 6px;">TO</span>
-        <input type="date" id="endDate" value="<?php echo $endDate; ?>" class="form-control" style="width:150px;">
-        <button class="btn btn-primary" onclick="applyFilter()">FILTER</button>
-    </div>
-
-    <!-- Center: Export -->
-    <div style="display:flex; justify-content:center; align-items:center;">
-        <a href="?export=csv&start_date=<?php echo $startDate; ?>&end_date=<?php echo $endDate; ?>" class="btn btn-success" style="background:#1abc9c; border-color:#16a085;">Export to Excel</a>
-    </div>
-
-    <!-- Right: info cards -->
-    <div style="display:flex; gap:10px; align-items:center;">
-        <div class="info-card compact" style="background:#f1f3f4; color:#2c3e50; padding:8px 12px; border-radius:6px; min-width:120px; text-align:right;">
-            <div class="info-title" style="color:#7f8c8d; font-size:12px;">Today's Sales</div>
-            <div class="info-value" style="font-size:16px;">₱<?php echo number_format($todaySales['total'],2); ?></div>
+    <!-- Left: search + filters -->
+    <div style="display:flex; flex-direction:column; gap:8px;">
+        <div style="display:flex; gap:8px; align-items:center;">
+            <input type="text" id="searchQTop" placeholder="Search transactions..." class="form-control" style="width:320px;" value="<?php echo htmlspecialchars($search); ?>">
+            <button class="btn btn-info" onclick="applySearchTop()">Search</button>
         </div>
-        <div class="info-card compact" style="background:#f1f3f4; color:#2c3e50; padding:8px 12px; border-radius:6px; min-width:120px; text-align:right;">
-            <div class="info-title" style="color:#7f8c8d; font-size:12px;">Monthly Sales</div>
-            <div class="info-value" style="font-size:16px;">₱<?php echo number_format($monthlySales['total'],2); ?></div>
+        <div style="display:flex; gap:8px; align-items:center;">
+            <label style="margin-right:6px;">From:</label>
+            <input type="date" id="startDate" value="<?php echo $startDate; ?>" class="form-control" style="width:150px;">
+            <label style="margin-left:8px; margin-right:6px;">To:</label>
+            <input type="date" id="endDate" value="<?php echo $endDate; ?>" class="form-control" style="width:150px;">
+            <button class="btn btn-primary" onclick="applyFilter()">FILTER</button>
+        </div>
+    </div>
+
+    <!-- Right: info cards and Export -->
+    <div style="display:flex; gap:12px; align-items:center;">
+        <div style="display:flex; gap:10px; align-items:center;">
+            <div class="info-card compact" style="background:#f1f3f4; color:#2c3e50; padding:8px 12px; border-radius:6px; min-width:120px; text-align:right;">
+                <div class="info-title" style="color:#7f8c8d; font-size:12px;">Today's Sales</div>
+                <div class="info-value" style="font-size:16px;">₱<?php echo number_format($todaySales['total'],2); ?></div>
+            </div>
+            <div class="info-card compact" style="background:#f1f3f4; color:#2c3e50; padding:8px 12px; border-radius:6px; min-width:120px; text-align:right;">
+                <div class="info-title" style="color:#7f8c8d; font-size:12px;">Monthly Sales</div>
+                <div class="info-value" style="font-size:16px;">₱<?php echo number_format($monthlySales['total'],2); ?></div>
+            </div>
+        </div>
+        <div style="margin-left:8px;">
+            <a href="?export=csv&start_date=<?php echo $startDate; ?>&end_date=<?php echo $endDate; ?>" class="btn btn-success" style="background:#1abc9c; border-color:#16a085;">Export to Excel</a>
         </div>
     </div>
 </div>
@@ -117,15 +151,40 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
     </tbody>
 </table>
 
+<?php
+$totalPages = (int) ceil($totalCount / $perPage);
+if ($totalPages > 1):
+?>
+<div style="margin-top:12px; display:flex; justify-content:center; gap:6px; align-items:center;">
+    <?php if ($page > 1): ?>
+        <a class="btn btn-light" href="?start_date=<?php echo $startDate; ?>&end_date=<?php echo $endDate; ?>&q=<?php echo urlencode($search); ?>&page=<?php echo $page-1; ?>">&laquo; Prev</a>
+    <?php endif; ?>
+
+    <?php for ($p = 1; $p <= $totalPages; $p++): ?>
+        <a class="btn <?php echo $p === $page ? 'btn-primary' : 'btn-light'; ?>" href="?start_date=<?php echo $startDate; ?>&end_date=<?php echo $endDate; ?>&q=<?php echo urlencode($search); ?>&page=<?php echo $p; ?>"><?php echo $p; ?></a>
+    <?php endfor; ?>
+
+    <?php if ($page < $totalPages): ?>
+        <a class="btn btn-light" href="?start_date=<?php echo $startDate; ?>&end_date=<?php echo $endDate; ?>&q=<?php echo urlencode($search); ?>&page=<?php echo $page+1; ?>">Next &raquo;</a>
+    <?php endif; ?>
+</div>
+<?php endif; ?>
+
 <script>
 function applyFilter() {
     const s = document.getElementById('startDate').value;
     const e = document.getElementById('endDate').value;
-    const q = document.getElementById('searchQ') ? document.getElementById('searchQ').value : '';
+    const q = document.getElementById('searchQTop') ? document.getElementById('searchQTop').value : (document.getElementById('searchQ') ? document.getElementById('searchQ').value : '');
     window.location.href = `?start_date=${s}&end_date=${e}${q?('&q='+encodeURIComponent(q)) : ''}`;
 }
 function applySearch() {
     const q = document.getElementById('searchQ').value;
+    const s = document.getElementById('startDate').value;
+    const e = document.getElementById('endDate').value;
+    window.location.href = `?q=${encodeURIComponent(q)}&start_date=${s}&end_date=${e}`;
+}
+function applySearchTop() {
+    const q = document.getElementById('searchQTop').value;
     const s = document.getElementById('startDate').value;
     const e = document.getElementById('endDate').value;
     window.location.href = `?q=${encodeURIComponent(q)}&start_date=${s}&end_date=${e}`;
