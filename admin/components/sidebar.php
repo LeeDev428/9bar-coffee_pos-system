@@ -36,7 +36,7 @@ $current_page = basename($_SERVER['PHP_SELF'], '.php');
         <!-- Sale history link (Sale) -->
         <a href="pages/sales.php" class="nav-item <?php echo ($current_page == 'sales') ? 'active' : ''; ?>">
             <i class="fas fa-receipt"></i>
-            <span>SALE</span>
+            <span>SALES</span>
         </a>
         
         <a href="pages/settings.php" class="nav-item <?php echo ($current_page == 'settings') ? 'active' : ''; ?>">
