@@ -36,181 +36,250 @@ $currentUser = $auth->getCurrentUser();
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
     <style>
-        :root {
-            --primary-color: #8B4513;
-            --secondary-color: #D2B48C;
-            --accent-color: #F5E6D3;
-            --dark-color: #5D2F0A;
-            --success-color: #28a745;
-            --danger-color: #dc3545;
-            --warning-color: #ffc107;
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
 
         body {
-            background-color: #f8f9fa;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f5f5;
+            font-size: 14px;
         }
 
-        /* Sidebar Styles */
+        /* Sidebar */
         .sidebar {
-            width: 280px;
+            width: 180px;
             height: 100vh;
-            background: linear-gradient(180deg, var(--primary-color) 0%, var(--dark-color) 100%);
+            background: #334349ff; /* Darker blue-gray matching the image */
             position: fixed;
             left: 0;
             top: 0;
             z-index: 1000;
-            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+            overflow-y: auto;
         }
 
-        .sidebar .brand {
-            padding: 20px;
+        .sidebar-user {
+            padding: 20px 15px;
             text-align: center;
             border-bottom: 1px solid rgba(255,255,255,0.1);
         }
 
-        .sidebar .brand h3 {
-            color: white;
-            margin: 0;
-            font-weight: bold;
-        }
-
-        .sidebar .user-info {
-            padding: 15px 20px;
-            color: white;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-        }
-
-        .sidebar .nav {
-            padding: 20px 0;
-        }
-
-        .sidebar .nav-item {
-            margin: 5px 15px;
-        }
-
-        .sidebar .nav-link {
-            color: rgba(255,255,255,0.8);
-            padding: 12px 15px;
-            border-radius: 10px;
-            transition: all 0.3s ease;
+        .user-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: #b0bec5; /* Light gray for avatar matching the image */
             display: flex;
             align-items: center;
+            justify-content: center;
+            margin: 0 auto 10px;
+            color: #455a64; /* Darker text for avatar */
+            font-size: 20px;
+        }
+
+        .user-info h4 {
+            color: white;
+            font-size: 14px;
+            margin-bottom: 3px;
+            font-weight: 500;
+        }
+
+        .user-info p {
+            color: rgba(255,255,255,0.7);
+            font-size: 11px;
+            text-transform: uppercase;
+        }
+
+        .sidebar-nav {
+            padding: 15px 0;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            color: rgba(255,255,255,0.8);
+            text-decoration: none;
+            padding: 12px 20px;
+            margin: 1px 0;
+            transition: all 0.2s ease;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .nav-item:hover,
+        .nav-item.active {
+            background: rgba(127, 179, 195, 0.3); /* Teal highlight for active items */
+            color: white;
             text-decoration: none;
         }
 
-        .sidebar .nav-link:hover,
-        .sidebar .nav-link.active {
-            background: rgba(255,255,255,0.1);
-            color: white;
-            transform: translateX(5px);
+        .nav-item i {
+            margin-right: 10px;
+            width: 16px;
+            text-align: center;
+            font-size: 14px;
         }
 
-        .sidebar .nav-link i {
-            margin-right: 10px;
-            width: 20px;
-            text-align: center;
+        .sidebar-footer {
+            position: absolute;
+            bottom: 15px;
+            width: 100%;
         }
 
         /* Main Content */
         .main-content {
-            margin-left: 280px;
+            margin-left: 180px;
             min-height: 100vh;
+            background: #f5f5f5;
         }
 
         /* Header */
         .header {
             background: white;
-            padding: 20px 30px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            margin-bottom: 30px;
+            padding: 20px 25px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            margin-bottom: 25px;
         }
 
-        .header h1 {
-            color: var(--primary-color);
+        .header-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #2c3e50;
             margin: 0;
-            font-size: 28px;
-            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
-        .welcome-text {
-            color: #666;
-            margin: 0;
+        .header-subtitle {
+            font-size: 12px;
+            color: #7f8c8d;
+            margin: 3px 0 0 0;
+        }
+
+        .welcome-section {
+            background: #bdc3c7;
+            border-radius: 8px;
+            padding: 15px 20px;
+            text-align: left;
+        }
+
+        .welcome-title {
             font-size: 14px;
+            color: #2c3e50;
+            margin-bottom: 3px;
+        }
+
+        .welcome-subtitle {
+            font-size: 16px;
+            font-weight: 600;
+            color: #2c3e50;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
         /* Content Area */
         .content {
-            padding: 0 30px 30px 30px;
+            padding: 0 25px 25px 25px;
         }
 
-        /* Cards */
-        .card {
-            border: none;
-            border-radius: 15px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
-            margin-bottom: 30px;
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin-bottom: 25px;
         }
 
-        .card-header {
-            background: var(--accent-color);
-            border-bottom: none;
+        .stat-card {
+            background: #7fb3c3; /* Teal color matching the image */
+            border-radius: 8px;
+            padding: 20px 15px;
+            text-align: center;
+            color: white;
+            min-height: 120px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .stat-icon {
+            font-size: 24px;
+            margin-bottom: 8px;
+            opacity: 0.8;
+        }
+
+        .stat-title {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 5px;
+            opacity: 0.9;
+            font-weight: 600;
+        }
+
+        .stat-value {
+            font-size: 22px;
+            font-weight: 700;
+            line-height: 1;
+        }
+
+        /* Charts Container */
+        .charts-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+        }
+
+        .chart-card {
+            background: white;
+            border-radius: 8px;
             padding: 20px;
-            border-radius: 15px 15px 0 0 !important;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
 
-        .card-title {
-            color: var(--primary-color);
-            font-weight: bold;
-            margin: 0;
+        .chart-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
-        /* Buttons */
-        .btn-primary {
-            background: var(--primary-color);
-            border-color: var(--primary-color);
-            border-radius: 10px;
-            padding: 10px 20px;
+        /* Chart canvas sizing */
+        #salesChart {
+            max-height: 300px !important;
         }
 
-        .btn-primary:hover {
-            background: var(--dark-color);
-            border-color: var(--dark-color);
-        }
-
-        /* Tables */
-        .table {
-            margin: 0;
-        }
-
-        .table thead th {
-            background: var(--secondary-color);
-            color: var(--dark-color);
-            border: none;
-            font-weight: bold;
-        }
-
-        .table tbody tr:hover {
-            background: rgba(139, 69, 19, 0.05);
-        }
-
-        /* Status badges */
-        .badge {
-            font-size: 12px;
-            padding: 5px 10px;
-            border-radius: 20px;
+        #categoryChart {
+            max-height: 250px !important;
         }
 
         /* Responsive */
+        @media (max-width: 1200px) {
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
         @media (max-width: 768px) {
             .sidebar {
-                width: 100%;
-                height: auto;
-                position: relative;
+                transform: translateX(-100%);
+                transition: transform 0.3s ease;
             }
             
             .main-content {
                 margin-left: 0;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr;
             }
         }
     </style>
@@ -218,66 +287,58 @@ $currentUser = $auth->getCurrentUser();
 <body>
     <!-- Sidebar -->
     <div class="sidebar">
-        <div class="brand">
-            <h3>☕ BrewTopia</h3>
-            <small style="color: rgba(255,255,255,0.7);">Admin Panel</small>
+        <div class="sidebar-user">
+            <div class="user-avatar">
+                <i class="bi bi-person-fill"></i>
+            </div>
+            <div class="user-info">
+                <h4><?php echo htmlspecialchars($currentUser['full_name']); ?></h4>
+                <p>Administrator</p>
+            </div>
         </div>
         
-        <div class="user-info">
-            <div><i class="bi bi-person-circle"></i> <?php echo htmlspecialchars($currentUser['full_name']); ?></div>
-            <small style="opacity: 0.7;">Administrator</small>
-        </div>
-        
-        <nav class="nav flex-column">
-            <div class="nav-item">
-                <a href="dashboard.php" class="nav-link <?php echo basename($_SERVER['PHP_SELF']) == 'dashboard.php' ? 'active' : ''; ?>">
-                    <i class="bi bi-speedometer2"></i>
-                    Dashboard
-                </a>
-            </div>
-            <div class="nav-item">
-                <a href="products.php" class="nav-link <?php echo basename($_SERVER['PHP_SELF']) == 'products.php' ? 'active' : ''; ?>">
-                    <i class="bi bi-box-seam"></i>
-                    Manage Products
-                </a>
-            </div>
-            <div class="nav-item">
-                <a href="inventory.php" class="nav-link <?php echo basename($_SERVER['PHP_SELF']) == 'inventory.php' ? 'active' : ''; ?>">
-                    <i class="bi bi-boxes"></i>
-                    Inventory
-                </a>
-            </div>
-            <div class="nav-item">
-                <a href="records.php" class="nav-link <?php echo basename($_SERVER['PHP_SELF']) == 'records.php' ? 'active' : ''; ?>">
-                    <i class="bi bi-receipt"></i>
-                    Sales Records
-                </a>
-            </div>
-            <div class="nav-item">
-                <a href="settings.php" class="nav-link <?php echo basename($_SERVER['PHP_SELF']) == 'settings.php' ? 'active' : ''; ?>">
-                    <i class="bi bi-gear"></i>
-                    Settings
-                </a>
-            </div>
-            <div class="nav-item">
-                <a href="../../logout.php" class="nav-link text-danger">
-                    <i class="bi bi-box-arrow-right"></i>
-                    Logout
-                </a>
-            </div>
+        <nav class="sidebar-nav">
+            <?php
+            $current_page = basename($_SERVER['PHP_SELF']);
+            $nav_items = [
+                ['icon' => 'bi-speedometer2', 'text' => 'DASHBOARD', 'page' => 'dashboard.php'],
+                ['icon' => 'bi-box-seam', 'text' => 'MANAGE PRODUCT', 'page' => 'products.php'],
+                ['icon' => 'bi-boxes', 'text' => 'INVENTORY', 'page' => 'inventory.php'],
+                ['icon' => 'bi-receipt', 'text' => 'RECORD', 'page' => 'records.php'],
+                ['icon' => 'bi-gear', 'text' => 'SETTING', 'page' => 'settings.php']
+            ];
+            
+            foreach ($nav_items as $item) {
+                $active = ($current_page == $item['page']) ? 'active' : '';
+                echo "<a href='{$item['page']}' class='nav-item {$active}'>";
+                echo "<i class='bi {$item['icon']}'></i>";
+                echo "<span>{$item['text']}</span>";
+                echo "</a>";
+            }
+            ?>
         </nav>
+        
+        <div class="sidebar-footer">
+            <a href="../../logout.php" class="nav-item" style="color: #e74c3c;">
+                <i class="bi bi-box-arrow-right"></i>
+                <span>LOG OUT</span>
+            </a>
+        </div>
     </div>
 
     <!-- Main Content -->
     <div class="main-content">
         <!-- Header -->
-        <div class="header d-flex justify-content-between align-items-center">
-            <div>
-                <h1><?php echo isset($page_title) ? $page_title : 'Admin Dashboard'; ?></h1>
-                <p class="welcome-text">Welcome back, Administrator</p>
-            </div>
-            <div class="text-muted">
-                <?php echo date('D, M j, Y g:i:s A'); ?>
+        <div class="header">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <h1 class="header-title"><?php echo isset($page_title) ? $page_title : 'DASHBOARD'; ?></h1>
+                    <p class="header-subtitle"><?php echo date('D, M-d-Y h:i:s a'); ?></p>
+                </div>
+                <div class="welcome-section">
+                    <div class="welcome-title">Hi <strong>admin</strong></div>
+                    <div class="welcome-subtitle">WELCOME BACK</div>
+                </div>
             </div>
         </div>
 
