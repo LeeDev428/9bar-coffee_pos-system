@@ -552,7 +552,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 updateCartDisplay();
                 
                 // Reset form
-                document.getElementById('customerName').value = '';
                 receivedAmountInput.value = '';
                 changeAmountDiv.style.display = 'none';
                 
