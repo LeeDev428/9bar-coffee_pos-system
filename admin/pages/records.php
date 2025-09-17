@@ -3,13 +3,6 @@
 $page_title = 'RECORDS & REPORTS';
 include '../components/main-layout.php';
 
-// Handle logout
-if (isset($_GET['action']) && $_GET['action'] === 'logout') {
-    $auth->logout();
-    header('Location: ../../login.php');
-    exit();
-}
-
 // Get date filters from request
 $startDate = $_GET['start_date'] ?? date('Y-m-d', strtotime('-30 days'));
 $endDate = $_GET['end_date'] ?? date('Y-m-d');
