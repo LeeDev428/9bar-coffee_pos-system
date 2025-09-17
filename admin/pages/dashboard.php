@@ -1,6 +1,6 @@
 <?php
 // Admin Dashboard Page
-$page_title = 'ADMIN DASHBOARD';
+$page_title = 'DASHBOARD';
 include '../components/main-layout.php';
 
 // Initialize managers
@@ -9,95 +9,142 @@ $salesManager = new SalesManager($db);
 
 // Get dashboard statistics
 $todaysSales = $db->fetchValue("SELECT COALESCE(SUM(total_amount), 0) FROM sales WHERE DATE(sale_date) = CURDATE()");
+$todaysQuantity = $db->fetchValue("SELECT COALESCE(SUM(si.quantity), 0) FROM sale_items si JOIN sales s ON si.sale_id = s.sale_id WHERE DATE(s.sale_date) = CURDATE()");
 $totalProducts = $db->fetchValue("SELECT COUNT(*) FROM products WHERE status = 'active'");
 $lowStockCount = $db->fetchValue("SELECT COUNT(*) FROM inventory WHERE current_stock <= minimum_stock");
-$totalCustomers = $db->fetchValue("SELECT COUNT(DISTINCT customer_name) FROM sales WHERE customer_name IS NOT NULL");
+
+// Sample data for charts (you can replace with real data queries)
+$chartLabels = ['ICED HAZELNUT', 'MATCHA', 'DOUBLE SHOT', 'CHOCOLATE', 'CARAMEL'];
+$chartData = [23, 14, 11, 10, 8];
 ?>
 
-<!-- Dashboard Content -->
-<div class="row">
-    <!-- Stats Cards -->
-    <div class="col-md-3 mb-4">
-        <div class="card bg-primary text-white">
-            <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <h6 class="card-title">Today's Sales</h6>
-                        <h3>₱<?php echo number_format($todaysSales, 2); ?></h3>
-                    </div>
-                    <div class="align-self-center">
-                        <i class="bi bi-currency-dollar fs-1"></i>
-                    </div>
-                </div>
-            </div>
+<!-- Dashboard Stats Cards -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-icon">
+            <i class="bi bi-currency-dollar"></i>
         </div>
+        <div class="stat-title">Daily Sales</div>
+        <div class="stat-value">₱<?php echo number_format($todaysSales, 2); ?></div>
     </div>
-    
-    <div class="col-md-3 mb-4">
-        <div class="card bg-success text-white">
-            <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <h6 class="card-title">Total Products</h6>
-                        <h3><?php echo $totalProducts; ?></h3>
-                    </div>
-                    <div class="align-self-center">
-                        <i class="bi bi-box-seam fs-1"></i>
-                    </div>
-                </div>
-            </div>
+
+    <div class="stat-card">
+        <div class="stat-icon">
+            <i class="bi bi-box-seam"></i>
         </div>
+        <div class="stat-title">Quantity Sold Today</div>
+        <div class="stat-value"><?php echo number_format($todaysQuantity); ?></div>
     </div>
-    
-    <div class="col-md-3 mb-4">
-        <div class="card bg-warning text-white">
-            <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <h6 class="card-title">Low Stock Items</h6>
-                        <h3><?php echo $lowStockCount; ?></h3>
-                    </div>
-                    <div class="align-self-center">
-                        <i class="bi bi-exclamation-triangle fs-1"></i>
-                    </div>
-                </div>
-            </div>
+
+    <div class="stat-card">
+        <div class="stat-icon">
+            <i class="bi bi-grid-3x3-gap"></i>
         </div>
+        <div class="stat-title">Total Product</div>
+        <div class="stat-value"><?php echo number_format($totalProducts); ?></div>
     </div>
-    
-    <div class="col-md-3 mb-4">
-        <div class="card bg-info text-white">
-            <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <h6 class="card-title">Customers</h6>
-                        <h3><?php echo $totalCustomers; ?></h3>
-                    </div>
-                    <div class="align-self-center">
-                        <i class="bi bi-people fs-1"></i>
-                    </div>
-                </div>
-            </div>
+
+    <div class="stat-card">
+        <div class="stat-icon">
+            <i class="bi bi-exclamation-triangle"></i>
         </div>
+        <div class="stat-title">Critical Items</div>
+        <div class="stat-value"><?php echo number_format($lowStockCount); ?></div>
     </div>
 </div>
 
-<!-- Welcome Section -->
-<div class="row">
-    <div class="col-12 mb-4">
-        <div class="card">
-            <div class="card-body text-center py-5">
-                <h2 class="text-primary mb-3">Welcome back, <?php echo htmlspecialchars($currentUser['full_name'] ?? 'Administrator'); ?>!</h2>
-                <p class="lead text-muted">Here's what's happening with your coffee shop today.</p>
-            </div>
-        </div>
+<!-- Charts Section -->
+<div class="charts-grid">
+    <div class="chart-card">
+        <div class="chart-title">Sales Overview</div>
+        <canvas id="salesChart"></canvas>
+    </div>
+    
+    <div class="chart-card">
+        <div class="chart-title">Product Performance</div>
+        <canvas id="categoryChart"></canvas>
     </div>
 </div>
 
-<!-- Charts Row -->
-<div class="row">
-    <div class="col-md-8 mb-4">
-        <div class="card">
+<script>
+// Bar Chart
+const salesCtx = document.getElementById('salesChart').getContext('2d');
+const salesChart = new Chart(salesCtx, {
+    type: 'bar',
+    data: {
+        labels: <?php echo json_encode($chartLabels); ?>,
+        datasets: [{
+            label: 'Quantity Sold',
+            data: <?php echo json_encode($chartData); ?>,
+            backgroundColor: '#7fb3c3', /* Matching teal color */
+            borderColor: '#5a9aac',
+            borderWidth: 1
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                display: false
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                max: 25,
+                ticks: {
+                    stepSize: 5
+                }
+            },
+            x: {
+                ticks: {
+                    maxRotation: 0,
+                    font: {
+                        size: 10
+                    }
+                }
+            }
+        }
+    }
+});
+
+// Pie Chart
+const categoryCtx = document.getElementById('categoryChart').getContext('2d');
+const categoryChart = new Chart(categoryCtx, {
+    type: 'pie',
+    data: {
+        labels: ['Iced Coffee', 'Hot Coffee', 'Fruit Tea', 'Milktea'],
+        datasets: [{
+            data: [35, 25, 25, 15],
+            backgroundColor: [
+                '#7fb3c3', /* Iced Coffee - main teal */
+                '#95c5d1', /* Hot Coffee - lighter teal */
+                '#b8d4df', /* Fruit Tea - even lighter */
+                '#dae8ed'  /* Milktea - lightest */
+            ],
+            borderWidth: 2,
+            borderColor: '#ffffff'
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'right',
+                labels: {
+                    padding: 15,
+                    usePointStyle: true,
+                    font: {
+                        size: 11
+                    }
+                }
+            }
+        }
+    }
+});
+</script>
             <div class="card-header">
                 <h5 class="card-title mb-0">Daily Sales</h5>
             </div>
@@ -141,7 +188,7 @@ $totalCustomers = $db->fetchValue("SELECT COUNT(DISTINCT customer_name) FROM sal
                         <tbody>
                             <?php
                             $recentSales = $db->fetchAll("
-                                SELECT transaction_number, customer_name, total_amount, sale_date, status 
+                                SELECT transaction_number, customer_name, total_amount, sale_date, payment_status 
                                 FROM sales 
                                 ORDER BY sale_date DESC 
                                 LIMIT 10
@@ -155,7 +202,7 @@ $totalCustomers = $db->fetchValue("SELECT COUNT(DISTINCT customer_name) FROM sal
                                 <td><?php echo date('M j, Y g:i A', strtotime($sale['sale_date'])); ?></td>
                                 <td>
                                     <span class="badge bg-success">
-                                        <?php echo ucfirst($sale['status']); ?>
+                                        <?php echo ucfirst($sale['payment_status']); ?>
                                     </span>
                                 </td>
                             </tr>
