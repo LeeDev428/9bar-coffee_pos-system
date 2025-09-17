@@ -59,42 +59,45 @@ $currentUser = $auth->getCurrentUser();
         .sidebar {
             width: 180px;
             height: 100vh;
-            background: #334349ff; /* Darker blue-gray matching the image */
+            /* dark gradient to match the login left panel */
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
             position: fixed;
             left: 0;
             top: 0;
             z-index: 1000;
             overflow-y: auto;
+            border-right: 1px solid rgba(255,255,255,0.04);
+            color: #ffffff;
         }
 
         .sidebar-user {
             padding: 20px 15px;
             text-align: center;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
+            border-bottom: 1px solid rgba(255,255,255,0.04);
         }
 
         .user-avatar {
             width: 50px;
             height: 50px;
             border-radius: 50%;
-            background: #b0bec5; /* Light gray for avatar matching the image */
+            background: rgba(255,255,255,0.12);
             display: flex;
             align-items: center;
             justify-content: center;
             margin: 0 auto 10px;
-            color: #455a64; /* Darker text for avatar */
+            color: #ffffff;
             font-size: 20px;
         }
 
         .user-info h4 {
-            color: white;
+            color: #ffffff;
             font-size: 14px;
             margin-bottom: 3px;
             font-weight: 500;
         }
 
         .user-info p {
-            color: rgba(255,255,255,0.7);
+            color: rgba(255,255,255,0.85);
             font-size: 11px;
             text-transform: uppercase;
         }
@@ -106,7 +109,7 @@ $currentUser = $auth->getCurrentUser();
         .nav-item {
             display: flex;
             align-items: center;
-            color: rgba(255,255,255,0.8);
+            color: #ffffff;
             text-decoration: none;
             padding: 12px 20px;
             margin: 1px 0;
@@ -118,8 +121,8 @@ $currentUser = $auth->getCurrentUser();
 
         .nav-item:hover,
         .nav-item.active {
-            background: rgba(127, 179, 195, 0.3); /* Teal highlight for active items */
-            color: white;
+            background: rgba(255,255,255,0.06); /* subtle white highlight */
+            color: #ffffff;
             text-decoration: none;
         }
 
@@ -128,6 +131,7 @@ $currentUser = $auth->getCurrentUser();
             width: 16px;
             text-align: center;
             font-size: 14px;
+            color: #ffffff;
         }
 
         .sidebar-footer {
