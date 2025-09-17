@@ -316,7 +316,7 @@ $currentUser = $auth->getCurrentUser();
                 ['icon' => 'bi-box-seam', 'text' => 'MANAGE PRODUCT', 'page' => 'products.php'],
                 ['icon' => 'bi-boxes', 'text' => 'INVENTORY', 'page' => 'inventory.php'],
                 ['icon' => 'bi-receipt', 'text' => 'RECORD', 'page' => 'records.php'],
-                ['icon' => 'bi-journal-text', 'text' => 'SALE', 'page' => 'sales.php'],
+                ['icon' => 'bi-journal-text', 'text' => 'SALES', 'page' => 'sales.php'],
                 ['icon' => 'bi-gear', 'text' => 'SETTING', 'page' => 'settings.php']
             ];
             
