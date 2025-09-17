@@ -15,12 +15,11 @@ $page_title = $page_titles[$current_page] ?? 'DASHBOARD';
     <div style="display: flex; justify-content: space-between; align-items: center;">
         <div>
             <h1 class="header-title"><?php echo $page_title; ?></h1>
-            <p class="header-subtitle">
-                <?php echo date('D, M d, Y h:i:s A'); ?>
-            </p>
+            <p class="header-subtitle"><?php echo date('D, M-d-Y h:i:s a'); ?></p>
         </div>
-        <div style="color: #7f8c8d; font-size: 0.9rem;">
-            Welcome back, <?php echo htmlspecialchars($user['full_name']); ?>
+        <div class="welcome-message">
+            Hi <strong>admin</strong><br>
+            <span style="font-size: 18px; font-weight: 600;">WELCOME BACK</span>
         </div>
     </div>
 </div>
