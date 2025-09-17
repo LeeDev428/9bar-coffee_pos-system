@@ -228,11 +228,6 @@ if (!isset($_SESSION['cart'])) {
                     
                     <!-- Payment Section -->
                     <div class="payment-section mt-3">
-                        <div class="mb-2">
-                            <input type="text" id="customerName" class="form-control form-control-sm" 
-                                   placeholder="Customer Name (optional)">
-                        </div>
-                        
                         <div class="row mb-2">
                             <div class="col-6">
                                 <select id="paymentMethod" class="form-select form-select-sm">
@@ -537,7 +532,6 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Process payment
     processPaymentBtn.addEventListener('click', function() {
-        const customerName = document.getElementById('customerName').value;
         const paymentMethod = paymentMethodSelect.value;
         const receivedAmount = parseFloat(receivedAmountInput.value) || 0;
         
@@ -549,7 +543,7 @@ document.addEventListener('DOMContentLoaded', function() {
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
             },
-            body: `action=process_sale&customer_name=${encodeURIComponent(customerName)}&payment_method=${paymentMethod}&received_amount=${receivedAmount}`
+            body: `action=process_sale&payment_method=${paymentMethod}&received_amount=${receivedAmount}`
         })
         .then(response => response.json())
         .then(data => {
