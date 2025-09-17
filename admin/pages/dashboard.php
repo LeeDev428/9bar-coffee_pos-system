@@ -1,7 +1,7 @@
 <?php
 // Admin Dashboard Page
-$page_title = 'DASHBOARD';
-include '../components/layout-start.php';
+$page_title = 'ADMIN DASHBOARD';
+include '../components/main-layout.php';
 
 // Check admin access
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
@@ -307,5 +307,5 @@ $salesManager = new SalesManager($db);
         // Update stats every 5 minutes
         setInterval(updateStats, 300000);
     </script>
-</body>
-</html>
+
+<?php include '../components/layout-end.php'; ?>

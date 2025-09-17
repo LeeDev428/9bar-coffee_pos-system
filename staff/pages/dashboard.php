@@ -1,7 +1,7 @@
 <?php
-require_once 'includes/database.php';
-require_once 'includes/auth.php';
-require_once 'includes/functions.php';
+require_once '../../includes/database.php';
+require_once '../../includes/auth.php';
+require_once '../../includes/functions.php';
 
 // Initialize database and auth
 try {
