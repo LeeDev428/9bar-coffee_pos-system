@@ -502,17 +502,6 @@ tbody tr:hover {
                         <?php else: ?>
                         <div style="width:50px;height:50px;background:#f0f0f0;border-radius:4px;display:inline-block;"></div>
                         <?php endif; ?>
-                        <div style="font-size:11px;color:#7f8c8d;margin-top:6px;">
-                            <div>path: <code><?php echo htmlspecialchars($product['image_path'] ?? ''); ?></code></div>
-                            <?php
-                                $imgDiskPath = __DIR__ . '/../../' . ($product['image_path'] ?? '');
-                                $exists = !empty($product['image_path']) && file_exists($imgDiskPath);
-                            ?>
-                            <div>exists on disk: <strong><?php echo $exists ? 'yes' : 'no'; ?></strong></div>
-                            <?php if (!empty($product['image_path'])): ?>
-                                <a href="<?php echo htmlspecialchars('../../' . $product['image_path']); ?>" target="_blank">open</a>
-                            <?php endif; ?>
-                        </div>
                     </td>
                     <td>
                         <strong><?php echo htmlspecialchars($product['product_name']); ?></strong>
