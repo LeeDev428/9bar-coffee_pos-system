@@ -1,47 +1,17 @@
 <?php
-require_once 'includes/database.php';
-require_once 'includes/auth.php';
-require_once 'includes/functions.php';
+// Admin Dashboard Page
+$page_title = 'DASHBOARD';
+include '../components/layout-start.php';
 
-// Initialize database and auth
-try {
-    $db = new Database();
-    $auth = new Auth($db);
-} catch (Exception $e) {
-    die("Database connection failed: " . $e->getMessage());
+// Check admin access
+if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
+    header('Location: ../../login.php');
+    exit;
 }
 
-// Require login
-$auth->requireLogin();
-
-// Get user and redirect based on role
-$user = $auth->getCurrentUser();
-
-// Role-based dashboard routing
-if ($user['role'] === 'admin') {
-    // Admin gets full dashboard
-    $dashboard = new Dashboard($db);
-    $stats = $dashboard->getDashboardStats();
-    $bestSelling = $dashboard->getBestSellingProducts(5);
-    $criticalItems = $dashboard->getCriticalItems(5);
-    $salesChart = $dashboard->getSalesChart(7);
-    $productChart = $dashboard->getProductQuantityChart();
-} else {
-    // Staff gets limited dashboard
-    $dashboard = new Dashboard($db);
-    $stats = $dashboard->getDashboardStats();
-    // Limited data for staff
-    $bestSelling = [];
-    $criticalItems = [];
-    $salesChart = [];
-    $productChart = [];
-}
-
-// Handle logout
-if (isset($_GET['action']) && $_GET['action'] === 'logout') {
-    $auth->logout();
-    redirectTo('login.php');
-}
+// Initialize managers
+$productManager = new ProductManager($db);
+$salesManager = new SalesManager($db);
 ?>
 <!DOCTYPE html>
 <html lang="en">
