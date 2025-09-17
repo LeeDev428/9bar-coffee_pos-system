@@ -24,7 +24,7 @@ $salesData = $db->fetchAll("
 $topProducts = $db->fetchAll("
     SELECT p.product_name, 
            SUM(si.quantity) as total_quantity,
-           SUM(si.subtotal) as total_revenue,
+           SUM(si.total_price) as total_revenue,
            COUNT(DISTINCT s.sale_id) as transaction_count
     FROM sale_items si
     JOIN products p ON si.product_id = p.product_id
@@ -39,7 +39,7 @@ $topProducts = $db->fetchAll("
 $categoryPerformance = $db->fetchAll("
     SELECT c.category_name,
            SUM(si.quantity) as total_quantity,
-           SUM(si.subtotal) as total_revenue,
+           SUM(si.total_price) as total_revenue,
            AVG(si.unit_price) as avg_price
     FROM sale_items si
     JOIN products p ON si.product_id = p.product_id
