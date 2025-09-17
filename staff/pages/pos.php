@@ -176,6 +176,13 @@ if (!isset($_SESSION['cart'])) {
                     <?php else: ?>
                         <?php foreach ($products as $product): ?>
                         <div class="product-card" data-category="<?php echo $product['category_id']; ?>">
+                            <?php if (!empty($product['image_path'])): ?>
+                                <img src="<?php echo htmlspecialchars('../' . $product['image_path']); ?>" alt="" style="width:100%;height:120px;object-fit:cover;border-radius:6px;margin-bottom:10px;">
+                            <?php else: ?>
+                                <div style="width:100%;height:120px;background:#f5f5f5;border-radius:6px;margin-bottom:10px;display:flex;align-items:center;justify-content:center;color:#999;">
+                                    <i class="bi bi-image" style="font-size:2rem;"></i>
+                                </div>
+                            <?php endif; ?>
                             <div class="product-info">
                                 <h6 class="product-name"><?php echo htmlspecialchars($product['product_name']); ?></h6>
                                 <div class="product-price">₱<?php echo number_format($product['price'], 2); ?></div>
@@ -307,7 +314,7 @@ if (!isset($_SESSION['cart'])) {
     padding: 10px 15px;
     border-bottom: 1px solid #eee;
     display: flex;
-    justify-content-between;
+    justify-content: space-between;
     align-items: center;
 }
 
