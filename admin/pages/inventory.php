@@ -231,6 +231,10 @@ $totalValue = array_sum(array_map(function($item) { return $item['current_stock'
 
 .btn:hover { opacity: 0.9; transform: translateY(-1px); }
 .btn-sm { padding: 5px 10px; font-size: 11px; }
+/* Ensure small buttons have enough space to show labels */
+.btn-sm { padding: 6px 10px; font-size: 12px; min-width: 64px; white-space: nowrap; }
+
+.btn .btn-text { margin-left: 6px; display: inline-block; }
 
 .filters-bar {
     display: flex;
@@ -481,11 +485,13 @@ tbody tr:hover {
                         </td>
                         <td><?php echo $item['last_updated'] ? date('M j, Y', strtotime($item['last_updated'])) : 'N/A'; ?></td>
                         <td>
-                            <button class="btn btn-primary btn-sm" onclick="openStockAdjustment(<?php echo htmlspecialchars(json_encode($item)); ?>)">
+                            <button class="btn btn-primary btn-sm" title="Adjust Stock" onclick="openStockAdjustment(<?php echo htmlspecialchars(json_encode($item)); ?>)">
                                 <i class="fas fa-edit"></i>
+                                <span class="btn-text">Adjust</span>
                             </button>
-                            <button class="btn btn-warning btn-sm" onclick="openStockLevels(<?php echo htmlspecialchars(json_encode($item)); ?>)">
+                            <button class="btn btn-warning btn-sm" title="Update Levels" onclick="openStockLevels(<?php echo htmlspecialchars(json_encode($item)); ?>)">
                                 <i class="fas fa-cog"></i>
+                                <span class="btn-text">Levels</span>
                             </button>
                         </td>
                     </tr>
