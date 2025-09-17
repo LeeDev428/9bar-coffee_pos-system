@@ -40,7 +40,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     ];
                 }
                 
-                echo json_encode(['success' => true, 'message' => 'Item added to cart']);
+                echo json_encode(['success' => true, 'message' => 'Item added to cart', 'cart' => $_SESSION['cart']]);
             } else {
                 echo json_encode(['success' => false, 'message' => 'Product not found']);
             }
@@ -50,7 +50,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             $productId = intval($_POST['product_id']);
             if (isset($_SESSION['cart'][$productId])) {
                 unset($_SESSION['cart'][$productId]);
-                echo json_encode(['success' => true, 'message' => 'Item removed from cart']);
+                echo json_encode(['success' => true, 'message' => 'Item removed from cart', 'cart' => $_SESSION['cart']]);
             } else {
                 echo json_encode(['success' => false, 'message' => 'Item not found in cart']);
             }
@@ -66,7 +66,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 $_SESSION['cart'][$productId]['quantity'] = $quantity;
             }
             
-            echo json_encode(['success' => true, 'message' => 'Cart updated']);
+            echo json_encode(['success' => true, 'message' => 'Cart updated', 'cart' => $_SESSION['cart']]);
             exit;
             
         case 'process_sale':
@@ -137,7 +137,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             
         case 'clear_cart':
             $_SESSION['cart'] = [];
-            echo json_encode(['success' => true, 'message' => 'Cart cleared']);
+            echo json_encode(['success' => true, 'message' => 'Cart cleared', 'cart' => $_SESSION['cart']]);
             exit;
     }
 }
@@ -364,45 +364,60 @@ document.addEventListener('DOMContentLoaded', function() {
     const changeAmountDiv = document.getElementById('changeAmount');
     const changeValueSpan = document.getElementById('changeValue');
     
-    // Add to cart functionality
-    document.querySelectorAll('.add-to-cart-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const productId = this.dataset.productId;
-            const productName = this.dataset.productName;
-            const price = parseFloat(this.dataset.price);
-            
-            addToCart(productId, productName, price, 1);
-        });
+    // Add to cart functionality (use event delegation so dynamically filtered items still work)
+    document.body.addEventListener('click', function(e) {
+        const btn = e.target.closest('.add-to-cart-btn');
+        if (!btn) return;
+        e.preventDefault();
+
+        const productId = btn.dataset.productId;
+        const productName = btn.dataset.productName;
+        const price = parseFloat(btn.dataset.price);
+
+        addToCart(productId, productName, price, 1);
     });
     
     // Add to cart function
     function addToCart(productId, productName, price, quantity) {
-        fetch('', {
+        // Post to current page explicitly so fetch resolves correctly
+        const postUrl = window.location.pathname + window.location.search;
+        fetch(postUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
             },
-            body: `action=add_to_cart&product_id=${productId}&quantity=${quantity}`
+            body: `action=add_to_cart&product_id=${encodeURIComponent(productId)}&quantity=${encodeURIComponent(quantity)}`
         })
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) throw new Error('Network response was not ok');
+            return response.json();
+        })
         .then(data => {
             if (data.success) {
-                // Update local cart
-                if (cart[productId]) {
-                    cart[productId].quantity += quantity;
+                // Use server-returned cart if available to keep in sync
+                if (data.cart) {
+                    cart = data.cart;
                 } else {
-                    cart[productId] = {
-                        product_id: productId,
-                        product_name: productName,
-                        price: price,
-                        quantity: quantity
-                    };
+                    if (cart[productId]) {
+                        cart[productId].quantity += quantity;
+                    } else {
+                        cart[productId] = {
+                            product_id: productId,
+                            product_name: productName,
+                            price: price,
+                            quantity: quantity
+                        };
+                    }
                 }
                 updateCartDisplay();
                 showNotification(data.message, 'success');
             } else {
-                showNotification(data.message, 'error');
+                showNotification(data.message || 'Failed to add item', 'error');
             }
+        })
+        .catch(err => {
+            console.error('Add to cart error:', err);
+            showNotification('Network error while adding item', 'error');
         });
     }
     
@@ -414,10 +429,18 @@ document.addEventListener('DOMContentLoaded', function() {
         if (Object.keys(cart).length === 0) {
             cartHTML = '<div class="text-center text-muted p-3">Cart is empty</div>';
         } else {
-            Object.values(cart).forEach(item => {
+            Object.values(cart).forEach(rawItem => {
+                // Normalize item from server (may be associative array)
+                const item = {
+                    product_id: rawItem['product_id'] || rawItem.product_id,
+                    product_name: rawItem['product_name'] || rawItem.product_name,
+                    price: parseFloat(rawItem['price'] ?? rawItem.price) || 0,
+                    quantity: parseInt(rawItem['quantity'] ?? rawItem.quantity) || 0
+                };
+
                 const itemTotal = item.price * item.quantity;
                 subtotal += itemTotal;
-                
+
                 cartHTML += `
                     <div class="cart-item">
                         <div>
@@ -457,17 +480,22 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Remove from cart
     function removeFromCart(productId) {
-        fetch('', {
+        const postUrl = window.location.pathname + window.location.search;
+        fetch(postUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
             },
-            body: `action=remove_from_cart&product_id=${productId}`
+            body: `action=remove_from_cart&product_id=${encodeURIComponent(productId)}`
         })
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                delete cart[productId];
+                if (data.cart) {
+                    cart = data.cart;
+                } else {
+                    delete cart[productId];
+                }
                 updateCartDisplay();
                 showNotification(data.message, 'success');
             }
@@ -487,7 +515,7 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    cart = {};
+                    cart = data.cart || {};
                     updateCartDisplay();
                     showNotification(data.message, 'success');
                 }
