@@ -14,6 +14,13 @@ try {
     die("Database connection failed: " . $e->getMessage());
 }
 
+// Handle logout BEFORE any HTML output
+if (isset($_GET['action']) && $_GET['action'] === 'logout') {
+    $auth->logout();
+    header('Location: ../../login.php');
+    exit();
+}
+
 // Check if user is authenticated and is admin
 $auth->requireLogin();
 $auth->requireAdmin();
@@ -319,7 +326,7 @@ $currentUser = $auth->getCurrentUser();
         </nav>
         
         <div class="sidebar-footer">
-            <a href="../../logout.php" class="nav-item" style="color: #e74c3c;">
+            <a href="dashboard.php?action=logout" class="nav-item" style="color: #e74c3c;">
                 <i class="bi bi-box-arrow-right"></i>
                 <span>LOG OUT</span>
             </a>
