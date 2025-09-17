@@ -3,6 +3,10 @@
  * Thermal Printer Class for ESC/POS Compatible Printers
  * Supports USB, Network, and Bluetooth thermal printers
  */
+
+// Include guard to prevent multiple declarations
+if (!class_exists('ThermalPrinter')) {
+    
 class ThermalPrinter {
     private $connector;
     private $printer;
@@ -355,4 +359,6 @@ class ThermalPrinter {
         return $this;
     }
 }
+
+} // End of include guard
 ?>

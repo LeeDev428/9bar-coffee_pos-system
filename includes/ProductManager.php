@@ -3,6 +3,10 @@
  * Product Manager Class
  * Handles product CRUD operations
  */
+
+// Include guard to prevent multiple declarations
+if (!class_exists('ProductManager')) {
+    
 class ProductManager {
     private $db;
     
@@ -155,4 +159,6 @@ class ProductManager {
         ");
     }
 }
+
+} // End of include guard
 ?>

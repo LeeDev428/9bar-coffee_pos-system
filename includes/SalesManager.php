@@ -3,6 +3,10 @@
  * Sales Manager Class
  * Handles sales transactions and related operations
  */
+
+// Include guard to prevent multiple declarations
+if (!class_exists('SalesManager')) {
+    
 class SalesManager {
     private $db;
     
@@ -243,4 +247,6 @@ class SalesManager {
         return 'TXN-' . date('Ymd') . '-' . str_pad(mt_rand(1, 9999), 4, '0', STR_PAD_LEFT);
     }
 }
+
+} // End of include guard
 ?>
