@@ -3,309 +3,276 @@
 $page_title = 'ADMIN DASHBOARD';
 include '../components/main-layout.php';
 
-// Check admin access
-if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
-    header('Location: ../../login.php');
-    exit;
-}
-
 // Initialize managers
 $productManager = new ProductManager($db);
 $salesManager = new SalesManager($db);
+
+// Get dashboard statistics
+$todaysSales = $db->fetchValue("SELECT COALESCE(SUM(total_amount), 0) FROM sales WHERE DATE(sale_date) = CURDATE()");
+$totalProducts = $db->fetchValue("SELECT COUNT(*) FROM products WHERE status = 'active'");
+$lowStockCount = $db->fetchValue("SELECT COUNT(*) FROM inventory WHERE current_stock <= minimum_stock");
+$totalCustomers = $db->fetchValue("SELECT COUNT(DISTINCT customer_name) FROM sales WHERE customer_name IS NOT NULL");
 ?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard - BrewTopia POS</title>
-    <link rel="stylesheet" href="assets/css/style.css">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-</head>
-<body>
-    <div class="dashboard-container">
-        <!-- Sidebar Navigation -->
-        <div class="sidebar">
-            <div class="sidebar-header">
-                <div class="sidebar-user">
-                    <div class="user-avatar">
-                        <i class="fas fa-user"></i>
+
+<!-- Dashboard Content -->
+<div class="row">
+    <!-- Stats Cards -->
+    <div class="col-md-3 mb-4">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title">Today's Sales</h6>
+                        <h3>₱<?php echo number_format($todaysSales, 2); ?></h3>
                     </div>
-                    <div class="user-info">
-                        <h4><?php echo htmlspecialchars($user['full_name']); ?></h4>
-                        <p><?php echo ucfirst($user['role']); ?></p>
-                    </div>
-                </div>
-            </div>
-            
-            <nav class="sidebar-nav">
-                <a href="dashboard.php" class="nav-item active">
-                    <i class="fas fa-tachometer-alt"></i>
-                    <span>DASHBOARD</span>
-                </a>
-                
-                <?php if ($user['role'] === 'admin'): ?>
-                <a href="admin/pages/products.php" class="nav-item">
-                    <i class="fas fa-boxes"></i>
-                    <span>MANAGE PRODUCT</span>
-                </a>
-                
-                <a href="admin/pages/inventory.php" class="nav-item">
-                    <i class="fas fa-warehouse"></i>
-                    <span>INVENTORY</span>
-                </a>
-                
-                <a href="admin/pages/records.php" class="nav-item">
-                    <i class="fas fa-file-alt"></i>
-                    <span>RECORD</span>
-                </a>
-                
-                <a href="admin/pages/settings.php" class="nav-item">
-                    <i class="fas fa-cog"></i>
-                    <span>SETTING</span>
-                </a>
-                <?php else: ?>
-                <a href="staff/pages/pos.php" class="nav-item">
-                    <i class="fas fa-cash-register"></i>
-                    <span>POINT OF SALE</span>
-                </a>
-                
-                <a href="staff/pages/inventory.php" class="nav-item">
-                    <i class="fas fa-warehouse"></i>
-                    <span>INVENTORY</span>
-                </a>
-                <?php endif; ?>
-            </nav>
-            
-            <div class="sidebar-footer">
-                <a href="?action=logout" class="nav-item" style="color: #e74c3c;">
-                    <i class="fas fa-sign-out-alt"></i>
-                    <span>LOG OUT</span>
-                </a>
-            </div>
-        </div>
-        
-        <!-- Main Content -->
-        <div class="main-content">
-            <!-- Header -->
-            <div class="header">
-                <h1 class="header-title">DASHBOARD</h1>
-                <p class="header-subtitle">
-                    <?php echo date('l, M d, Y h:i:s A'); ?>
-                </p>
-            </div>
-            
-            <!-- Content -->
-            <div class="content">
-                <!-- Welcome Section -->
-                <div style="background: white; padding: 25px; border-radius: 12px; margin-bottom: 30px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
-                    <h2 style="color: #2c3e50; margin: 0; font-size: 1.5rem;">Hi <?php echo htmlspecialchars($user['full_name']); ?></h2>
-                    <p style="color: #7f8c8d; margin: 5px 0 0 0; font-size: 1.1rem;">WELCOME BACK</p>
-                </div>
-                
-                <!-- Stats Grid -->
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <div class="stat-header">
-                            <h3 class="stat-title">Daily Sales</h3>
-                            <div class="stat-icon">
-                                <i class="fas fa-dollar-sign"></i>
-                            </div>
-                        </div>
-                        <p class="stat-value"><?php echo formatCurrency($stats['daily_sales'] ?? 0); ?></p>
-                    </div>
-                    
-                    <div class="stat-card">
-                        <div class="stat-header">
-                            <h3 class="stat-title">Quantity Sold Today</h3>
-                            <div class="stat-icon">
-                                <i class="fas fa-shopping-cart"></i>
-                            </div>
-                        </div>
-                        <p class="stat-value"><?php echo number_format($stats['quantity_sold_today'] ?? 0); ?></p>
-                    </div>
-                    
-                    <div class="stat-card">
-                        <div class="stat-header">
-                            <h3 class="stat-title">Total Product</h3>
-                            <div class="stat-icon">
-                                <i class="fas fa-cube"></i>
-                            </div>
-                        </div>
-                        <p class="stat-value"><?php echo number_format($stats['total_products'] ?? 0); ?></p>
-                    </div>
-                    
-                    <div class="stat-card">
-                        <div class="stat-header">
-                            <h3 class="stat-title">Critical Items</h3>
-                            <div class="stat-icon">
-                                <i class="fas fa-exclamation-triangle"></i>
-                            </div>
-                        </div>
-                        <p class="stat-value" style="color: #e74c3c;">
-                            <?php echo number_format($stats['critical_items'] ?? 0); ?>
-                        </p>
-                    </div>
-                </div>
-                
-                <!-- Analytics Grid -->
-                <div class="analytics-grid">
-                    <!-- Sales Chart -->
-                    <div class="chart-container">
-                        <h3 class="chart-title">Daily Sales</h3>
-                        <div style="height: 300px;">
-                            <canvas id="salesChart"></canvas>
-                        </div>
-                    </div>
-                    
-                    <!-- Product Quantity Chart (Horizontal Bar) -->
-                    <div class="chart-container">
-                        <h3 class="chart-title">Product Quantities</h3>
-                        <div style="height: 300px;">
-                            <canvas id="productChart"></canvas>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Product Charts Row -->
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px;">
-                    <!-- Best Selling Products Chart -->
-                    <div class="chart-container">
-                        <h3 class="chart-title">Best Selling</h3>
-                        <div style="height: 250px; padding: 20px;">
-                            <?php if (!empty($bestSelling)): ?>
-                                <?php foreach (array_slice($bestSelling, 0, 5) as $index => $product): ?>
-                                    <div style="margin-bottom: 15px;">
-                                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
-                                            <span style="font-size: 0.9rem; color: #2c3e50;"><?php echo htmlspecialchars($product['product_name']); ?></span>
-                                            <span style="font-size: 0.8rem; color: #7f8c8d;"><?php echo number_format($product['quantity_sold'] ?? 0); ?></span>
-                                        </div>
-                                        <div style="height: 8px; background: #ecf0f1; border-radius: 4px;">
-                                            <div style="height: 100%; background: #e67e22; border-radius: 4px; width: <?php echo min(100, ($product['quantity_sold'] ?? 0) * 5); ?>%;"></div>
-                                        </div>
-                                    </div>
-                                <?php endforeach; ?>
-                            <?php else: ?>
-                                <div style="text-align: center; color: #7f8c8d; padding: 40px;">
-                                    <p>No sales data available</p>
-                                </div>
-                            <?php endif; ?>
-                        </div>
-                    </div>
-                    
-                    <!-- Product Category Pie Chart -->
-                    <div class="chart-container">
-                        <h3 class="chart-title">Categories</h3>
-                        <div style="height: 250px; position: relative;">
-                            <canvas id="categoryChart"></canvas>
-                        </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-currency-dollar fs-1"></i>
                     </div>
                 </div>
             </div>
         </div>
     </div>
     
-    <script>
-        // Sales Chart (Vertical Bar Chart like in screenshot)
-        const salesCtx = document.getElementById('salesChart').getContext('2d');
-        const salesChart = new Chart(salesCtx, {
-            type: 'bar',
-            data: {
-                labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
-                datasets: [{
-                    label: 'Daily Sales',
-                    data: [225, 175, 200, 250],
-                    backgroundColor: '#95a5a6',
-                    borderRadius: 4,
-                    borderSkipped: false
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { display: false }
-                },
-                scales: {
-                    y: { 
-                        beginAtZero: true,
-                        max: 300,
-                        grid: { color: '#e0e0e0' },
-                        ticks: { stepSize: 50 }
-                    },
-                    x: { grid: { display: false } }
-                }
-            }
-        });
+    <div class="col-md-3 mb-4">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title">Total Products</h6>
+                        <h3><?php echo $totalProducts; ?></h3>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-box-seam fs-1"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-4">
+        <div class="card bg-warning text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title">Low Stock Items</h6>
+                        <h3><?php echo $lowStockCount; ?></h3>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-exclamation-triangle fs-1"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-4">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title">Customers</h6>
+                        <h3><?php echo $totalCustomers; ?></h3>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-people fs-1"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Welcome Section -->
+<div class="row">
+    <div class="col-12 mb-4">
+        <div class="card">
+            <div class="card-body text-center py-5">
+                <h2 class="text-primary mb-3">Welcome back, <?php echo htmlspecialchars($currentUser['full_name'] ?? 'Administrator'); ?>!</h2>
+                <p class="lead text-muted">Here's what's happening with your coffee shop today.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row -->
+<div class="row">
+    <div class="col-md-8 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Daily Sales</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="dailySalesChart"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Top Products</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="topProductsChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Sales -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Recent Sales</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Transaction #</th>
+                                <th>Customer</th>
+                                <th>Amount</th>
+                                <th>Date</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php
+                            $recentSales = $db->fetchAll("
+                                SELECT transaction_number, customer_name, total_amount, sale_date, status 
+                                FROM sales 
+                                ORDER BY sale_date DESC 
+                                LIMIT 10
+                            ");
+                            
+                            foreach ($recentSales as $sale): ?>
+                            <tr>
+                                <td><code><?php echo htmlspecialchars($sale['transaction_number']); ?></code></td>
+                                <td><?php echo htmlspecialchars($sale['customer_name'] ?? 'Walk-in'); ?></td>
+                                <td class="text-success fw-bold">₱<?php echo number_format($sale['total_amount'], 2); ?></td>
+                                <td><?php echo date('M j, Y g:i A', strtotime($sale['sale_date'])); ?></td>
+                                <td>
+                                    <span class="badge bg-success">
+                                        <?php echo ucfirst($sale['status']); ?>
+                                    </span>
+                                </td>
+                            </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Chart.js initialization
+document.addEventListener('DOMContentLoaded', function() {
+    // Daily Sales Chart
+    const dailyCtx = document.getElementById('dailySalesChart').getContext('2d');
+    <?php
+    // Get last 7 days sales data
+    $salesData = $db->fetchAll("
+        SELECT DATE(sale_date) as date, SUM(total_amount) as total
+        FROM sales 
+        WHERE sale_date >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
+        GROUP BY DATE(sale_date)
+        ORDER BY date
+    ");
+    
+    $dates = [];
+    $amounts = [];
+    for ($i = 6; $i >= 0; $i--) {
+        $date = date('Y-m-d', strtotime("-$i days"));
+        $dates[] = date('M j', strtotime($date));
         
-        // Product Quantity Chart (Horizontal Bar Chart like in screenshot)
-        const productCtx = document.getElementById('productChart').getContext('2d');
-        const productChart = new Chart(productCtx, {
-            type: 'bar',
-            data: {
-                labels: ['CHOCO HAZELNUT', 'MATCHA', 'DOUBLE DUTCH', 'CHOCOLATE', 'ORIGINAL'],
-                datasets: [{
-                    data: [40, 30, 25, 35, 30],
-                    backgroundColor: '#95a5a6',
-                    borderRadius: 4
-                }]
-            },
-            options: {
-                indexAxis: 'y',
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: {
-                    x: { 
-                        beginAtZero: true,
-                        max: 50,
-                        grid: { color: '#e0e0e0' }
-                    },
-                    y: { 
-                        grid: { display: false },
-                        ticks: { font: { size: 11 } }
-                    }
-                }
+        $found = false;
+        foreach ($salesData as $data) {
+            if ($data['date'] == $date) {
+                $amounts[] = floatval($data['total']);
+                $found = true;
+                break;
             }
-        });
-        
-        // Category Pie Chart
-        const categoryCtx = document.getElementById('categoryChart').getContext('2d');
-        const categoryChart = new Chart(categoryCtx, {
-            type: 'doughnut',
-            data: {
-                labels: ['Hot Coffee', 'Iced Coffee', 'Milkshake', 'Iced Coffee'],
-                datasets: [{
-                    data: [35, 25, 20, 20],
-                    backgroundColor: ['#7f8c8d', '#95a5a6', '#bdc3c7', '#d5dbdb'],
-                    borderWidth: 0
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        position: 'right',
-                        labels: {
-                            usePointStyle: true,
-                            padding: 15,
-                            font: { size: 11 }
+        }
+        if (!$found) {
+            $amounts[] = 0;
+        }
+    }
+    ?>
+    
+    new Chart(dailyCtx, {
+        type: 'line',
+        data: {
+            labels: <?php echo json_encode($dates); ?>,
+            datasets: [{
+                label: 'Daily Sales (₱)',
+                data: <?php echo json_encode($amounts); ?>,
+                borderColor: '#8B4513',
+                backgroundColor: 'rgba(139, 69, 19, 0.1)',
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return '₱' + value.toLocaleString();
                         }
                     }
-                },
-                cutout: '60%'
+                }
             }
-        });
-        
-        // Add real-time updates (optional)
-        function updateStats() {
-            console.log('Stats updated at:', new Date().toLocaleString());
         }
-        
-        // Update stats every 5 minutes
-        setInterval(updateStats, 300000);
-    </script>
+    });
+    
+    // Top Products Chart
+    const productsCtx = document.getElementById('topProductsChart').getContext('2d');
+    <?php
+    $topProducts = $db->fetchAll("
+        SELECT p.product_name, SUM(si.quantity) as total_sold
+        FROM products p
+        JOIN sale_items si ON p.product_id = si.product_id
+        JOIN sales s ON si.sale_id = s.sale_id
+        WHERE s.sale_date >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)
+        GROUP BY p.product_id
+        ORDER BY total_sold DESC
+        LIMIT 5
+    ");
+    
+    $productNames = array_column($topProducts, 'product_name');
+    $productSales = array_map('intval', array_column($topProducts, 'total_sold'));
+    ?>
+    
+    new Chart(productsCtx, {
+        type: 'doughnut',
+        data: {
+            labels: <?php echo json_encode($productNames); ?>,
+            datasets: [{
+                data: <?php echo json_encode($productSales); ?>,
+                backgroundColor: [
+                    '#8B4513',
+                    '#D2B48C',
+                    '#F5E6D3',
+                    '#5D2F0A',
+                    '#A0522D'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+});
+</script>
 
 <?php include '../components/layout-end.php'; ?>
