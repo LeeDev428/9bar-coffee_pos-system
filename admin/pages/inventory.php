@@ -7,6 +7,36 @@ include '../components/main-layout.php';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['action'])) {
         switch ($_POST['action']) {
+            case 'add_item':
+                try {
+                    // ensure table exists
+                    $db->query("CREATE TABLE IF NOT EXISTS inventory_items (
+                        item_id INT AUTO_INCREMENT PRIMARY KEY,
+                        item_code VARCHAR(100),
+                        item_name VARCHAR(255),
+                        measurement VARCHAR(100),
+                        category VARCHAR(100),
+                        quantity INT DEFAULT 0,
+                        date_added DATE,
+                        time_added TIME,
+                        added_by INT
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
+
+                    $itemCode = sanitizeInput($_POST['item_code'] ?? '');
+                    $itemName = sanitizeInput($_POST['item_name'] ?? '');
+                    $measurement = sanitizeInput($_POST['measurement'] ?? '');
+                    $categoryItem = sanitizeInput($_POST['category_item'] ?? '');
+                    $quantityItem = intval($_POST['quantity_item'] ?? 0);
+
+                    $db->query("INSERT INTO inventory_items (item_code, item_name, measurement, category, quantity, date_added, time_added, added_by) VALUES (?, ?, ?, ?, ?, CURDATE(), CURTIME(), ?)", [
+                        $itemCode, $itemName, $measurement, $categoryItem, $quantityItem, $_SESSION['user_id']
+                    ]);
+
+                    showAlert('Item added successfully!', 'success');
+                } catch (Exception $e) {
+                    showAlert('Error adding item: ' . $e->getMessage(), 'error');
+                }
+                break;
             case 'stock_adjustment':
                 try {
                     $productId = intval($_POST['product_id']);
@@ -36,53 +66,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     showAlert("Stock adjustment completed successfully!", 'success');
                 } catch (Exception $e) {
                     showAlert('Error adjusting stock: ' . $e->getMessage(), 'error');
-                }
-                break;
-            case 'add_item':
-                try {
-                    $itemCode = sanitizeInput($_POST['item_code']);
-                    $itemName = sanitizeInput($_POST['item_name']);
-                    $measurement = sanitizeInput($_POST['measurement']);
-                    $category = sanitizeInput($_POST['category']);
-                    $quantity = intval($_POST['quantity']);
-
-                    // Ensure table exists
-                    $db->query("CREATE TABLE IF NOT EXISTS inventory_items (
-                        item_id INT(11) NOT NULL AUTO_INCREMENT,
-                        item_code VARCHAR(100) NOT NULL,
-                        item_name VARCHAR(255) NOT NULL,
-                        measurement VARCHAR(50),
-                        category VARCHAR(50),
-                        quantity INT(11) NOT NULL DEFAULT 0,
-                        date_added DATE,
-                        time_added TIME,
-                        added_by INT(11),
-                        PRIMARY KEY (item_id)
-                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
-
-                    $db->query("INSERT INTO inventory_items (item_code, item_name, measurement, category, quantity, date_added, time_added, added_by) VALUES (?, ?, ?, ?, ?, CURDATE(), CURTIME(), ?)", [
-                        $itemCode, $itemName, $measurement, $category, $quantity, $_SESSION['user_id']
-                    ]);
-
-                    showAlert('Item added successfully!', 'success');
-                } catch (Exception $e) {
-                    showAlert('Error adding item: ' . $e->getMessage(), 'error');
-                }
-                break;
-
-            case 'remove_items':
-                try {
-                    $ids = $_POST['selected_items'] ?? [];
-                    if (!empty($ids)) {
-                        // Build placeholders
-                        $placeholders = implode(',', array_fill(0, count($ids), '?'));
-                        $db->query("DELETE FROM inventory_items WHERE item_id IN ($placeholders)", $ids);
-                        showAlert('Selected items removed.', 'success');
-                    } else {
-                        showAlert('No items selected to remove.', 'warning');
-                    }
-                } catch (Exception $e) {
-                    showAlert('Error removing items: ' . $e->getMessage(), 'error');
                 }
                 break;
                 
@@ -170,20 +153,27 @@ $recentAdjustments = $db->fetchAll("
     ORDER BY sa.adjustment_date DESC
     LIMIT 10
 ");
-    // Fetch inventory_items for Items List
-    $itemsList = [];
-    try {
-        $itemsList = $db->fetchAll("SELECT ii.*, u.username as added_by_name FROM inventory_items ii LEFT JOIN users u ON ii.added_by = u.user_id ORDER BY ii.date_added DESC, ii.time_added DESC");
-    } catch (Exception $e) {
-        // table may not exist yet — ignore
-        $itemsList = [];
-    }
 
 // Calculate inventory stats
 $totalProducts = count($inventoryData);
 $lowStockCount = count(array_filter($inventoryData, function($item) { return $item['stock_status'] === 'low'; }));
 $reorderCount = count(array_filter($inventoryData, function($item) { return $item['stock_status'] === 'reorder'; }));
 $totalValue = array_sum(array_map(function($item) { return $item['current_stock'] * $item['cost_price']; }, $inventoryData));
+?>
+<?php
+// Fetch items list (inventory_items) safely
+try {
+    $itemsList = $db->fetchAll("SELECT ii.*, u.username as added_by_name FROM inventory_items ii LEFT JOIN users u ON ii.added_by = u.user_id ORDER BY ii.date_added DESC, ii.time_added DESC");
+} catch (Exception $e) {
+    $itemsList = [];
+}
+
+// Items stats
+$totalItems = count($itemsList);
+$lowItemCount = 0;
+foreach ($itemsList as $it) {
+    if (isset($it['quantity']) && intval($it['quantity']) <= 0) $lowItemCount++;
+}
 ?>
 
 <style>
@@ -451,14 +441,11 @@ tbody tr:hover {
         <button class="btn btn-success" onclick="showBulkReorderModal()">
             <i class="fas fa-shopping-cart"></i> Bulk Reorder
         </button>
+        <button class="btn btn-primary" id="showItemsBtn">
+            <i class="fas fa-boxes"></i> Items
+        </button>
         <button class="btn btn-info" onclick="exportInventory()">
             <i class="fas fa-download"></i> Export
-        </button>
-        <button class="btn btn-secondary" id="tabItemsBtn" onclick="showItemsList()" style="margin-left:8px;">
-            <i class="fas fa-list"></i> Items List
-        </button>
-        <button class="btn btn-secondary" id="tabInventoryBtn" onclick="showInventoryTable()" style="margin-left:4px; display:none;">
-            <i class="fas fa-boxes"></i> Inventory
         </button>
     </div>
 </div>
@@ -483,99 +470,21 @@ tbody tr:hover {
     </div>
 </div>
 
+<!-- Items Stats (hidden by default, shown when Items tab active) -->
+<div class="items-stats" style="display:none; margin-bottom: 20px;">
+    <div class="stat-card" style="flex:1; margin-right: 10px;">
+        <div class="stat-value stat-info"><?php echo $totalItems; ?></div>
+        <div class="stat-label">Total Items</div>
+    </div>
+    <div class="stat-card" style="flex:1;">
+        <div class="stat-value stat-low"><?php echo $lowItemCount; ?></div>
+        <div class="stat-label">Low Stock Items</div>
+    </div>
+</div>
+
 <div class="inventory-content">
     <!-- Main Inventory Table -->
-    <div class="main-inventory" id="inventoryTableWrap" style="display:block;">
-    <!-- Items List Table (hidden by default) -->
-    <div class="main-inventory" id="itemsTableWrap" style="display:none;">
-        <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
-            <button class="btn btn-success" onclick="exportItems()">Export to Excel</button>
-            <div style="flex:1; display:flex; justify-content:center;">
-                <button class="btn btn-light" onclick="openAddItemModal()" style="display:flex; align-items:center; gap:8px;">
-                    <span style="border:1px solid #ccc; padding:6px 8px; border-radius:4px; background:#fff;">+</span>
-                    ADD ITEM
-                </button>
-            </div>
-            <button class="btn btn-danger" onclick="removeSelectedItems()">REMOVE</button>
-        </div>
-        <div class="table-container">
-            <table id="itemsTable">
-                <thead>
-                    <tr>
-                        <th>Item Code</th>
-                        <th>Item Name</th>
-                        <th>Measurement</th>
-                        <th>Category</th>
-                        <th>Quantity</th>
-                        <th>Date</th>
-                        <th>Time</th>
-                        <th>Added By</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php if (!empty($itemsList)): ?>
-                        <?php foreach ($itemsList as $it): ?>
-                        <tr>
-                            <td><?php echo htmlspecialchars($it['item_code']); ?></td>
-                            <td><?php echo htmlspecialchars($it['item_name']); ?></td>
-                            <td><?php echo htmlspecialchars($it['measurement']); ?></td>
-                            <td><?php echo htmlspecialchars($it['category']); ?></td>
-                            <td><?php echo (int)$it['quantity']; ?></td>
-                            <td><?php echo $it['date_added']; ?></td>
-                            <td><?php echo $it['time_added']; ?></td>
-                            <td><?php echo htmlspecialchars($it['added_by_name'] ?? ''); ?></td>
-                        </tr>
-                        <?php endforeach; ?>
-                    <?php else: ?>
-                        <tr><td colspan="8" style="text-align:center; color:#777;">No items found.</td></tr>
-                    <?php endif; ?>
-                </tbody>
-            </table>
-        </div>
-    </div>
-
-    <!-- Add Item Modal (for Items List) -->
-    <div id="addItemModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>Add Item</h3>
-                <span class="close" onclick="closeModal('addItemModal')">&times;</span>
-            </div>
-            <div class="modal-body">
-                <form method="POST">
-                    <input type="hidden" name="action" value="add_item">
-                    <div class="form-group">
-                        <label class="form-label">Item Code *</label>
-                        <input type="text" name="item_code" class="form-control" required>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Item Name *</label>
-                        <input type="text" name="item_name" class="form-control" required>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Measurement *</label>
-                        <input type="text" name="measurement" class="form-control" required>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Category *</label>
-                        <select name="category" class="form-control" required>
-                            <option value="Ingredients">Ingredients</option>
-                            <option value="Addon">Addon</option>
-                            <option value="Cups">Cups</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Quantity *</label>
-                        <input type="number" name="quantity" class="form-control" min="0" required>
-                    </div>
-                    <div style="text-align:right; margin-top:12px;">
-                        <button type="button" class="btn" onclick="closeModal('addItemModal')">Cancel</button>
-                        <button type="submit" class="btn btn-success">Add Item</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
+    <div class="main-inventory">
         <div class="filters-bar">
             <input type="text" class="form-control" id="searchInput" placeholder="Search products..." onkeyup="filterInventory()">
             
@@ -652,6 +561,65 @@ tbody tr:hover {
         </div>
     </div>
     
+    <!-- Items Panel (Add Items tab) -->
+    <div class="main-inventory" id="itemsPanel" style="display:none;">
+        <div class="filters-bar">
+            <input type="text" class="form-control" id="itemsSearchInput" placeholder="Search items..." onkeyup="filterItems()">
+            <select class="form-control" id="itemsCategoryFilter" onchange="filterItems()">
+                <option value="">All Categories</option>
+                <option value="Ingredients">Ingredients</option>
+                <option value="Addon">Addon</option>
+                <option value="Cups">Cups</option>
+            </select>
+            <div style="margin-left: auto;">
+                <button class="btn btn-success" onclick="openAddItemModal()"><i class="fas fa-plus"></i> Add Item</button>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <table id="itemsTable">
+                <thead>
+                    <tr>
+                        <th>Item Code</th>
+                        <th>Item Name</th>
+                        <th>Measurement</th>
+                        <th>Category</th>
+                        <th>Quantity</th>
+                        <th>Date</th>
+                        <th>Time</th>
+                        <th>Added By</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php if (!empty($itemsList)): ?>
+                        <?php foreach ($itemsList as $it): ?>
+                        <tr data-item-name="<?php echo strtolower($it['item_name']); ?>" data-item-category="<?php echo htmlspecialchars($it['category']); ?>">
+                            <td><?php echo htmlspecialchars($it['item_code']); ?></td>
+                            <td><?php echo htmlspecialchars($it['item_name']); ?></td>
+                            <td><?php echo htmlspecialchars($it['measurement']); ?></td>
+                            <td><?php echo htmlspecialchars($it['category']); ?></td>
+                            <td><?php echo intval($it['quantity']); ?></td>
+                            <td><?php echo $it['date_added'] ? date('M j, Y', strtotime($it['date_added'])) : 'N/A'; ?></td>
+                            <td><?php echo $it['time_added'] ? date('H:i', strtotime($it['time_added'])) : 'N/A'; ?></td>
+                            <td><?php echo htmlspecialchars($it['added_by_name'] ?? ''); ?></td>
+                        </tr>
+                        <?php endforeach; ?>
+                    <?php else: ?>
+                        <tr class="empty-row">
+                            <td style="text-align:center; color:#777;">No items found.</td>
+                            <td>&nbsp;</td>
+                            <td>&nbsp;</td>
+                            <td>&nbsp;</td>
+                            <td>&nbsp;</td>
+                            <td>&nbsp;</td>
+                            <td>&nbsp;</td>
+                            <td>&nbsp;</td>
+                        </tr>
+                    <?php endif; ?>
+                </tbody>
+            </table>
+        </div>
+    </div>
     <!-- Tools Panel -->
     <div class="inventory-tools">
         <div class="tools-section">
@@ -916,50 +884,138 @@ window.onclick = function(event) {
     });
 }
 
-// Tab switching logic
-function showItemsList() {
-    document.getElementById('inventoryTableWrap').style.display = 'none';
-    document.getElementById('itemsTableWrap').style.display = 'block';
-    document.getElementById('tabItemsBtn').style.display = 'none';
-    document.getElementById('tabInventoryBtn').style.display = 'inline-block';
-}
-function showInventoryTable() {
-    document.getElementById('itemsTableWrap').style.display = 'none';
-    document.getElementById('inventoryTableWrap').style.display = 'block';
-    document.getElementById('tabItemsBtn').style.display = 'inline-block';
-    document.getElementById('tabInventoryBtn').style.display = 'none';
-}
-
-// Export Items list as CSV (server-side GET handler will also work if implemented)
-function exportItems(){
-    var f = document.createElement('form');
-    f.method = 'GET';
-    f.action = window.location.href.split('?')[0];
-    var inp = document.createElement('input'); inp.type = 'hidden'; inp.name = 'export'; inp.value = 'items'; f.appendChild(inp);
-    document.body.appendChild(f);
-    f.submit();
+// Items panel & Add Item modal functions
+function showItemsPanel() {
+    const itemsPanel = document.getElementById('itemsPanel');
+    const tools = document.querySelector('.inventory-tools');
+    const btn = document.getElementById('showItemsBtn');
+    const stats = document.querySelector('.inventory-stats');
+    const itemsStats = document.querySelector('.items-stats');
+    // Hide all other main-inventory panels and show itemsPanel
+    const inventoryPanels = document.querySelectorAll('.main-inventory');
+    inventoryPanels.forEach(panel => {
+        if (panel.id === 'itemsPanel') {
+            panel.style.display = '';
+        } else {
+            panel.style.display = 'none';
+        }
+    });
+    if (tools) tools.style.display = 'none';
+    if (stats) stats.style.display = 'none';
+    if (itemsStats) { itemsStats.style.display = 'flex'; itemsStats.style.gap = '10px'; }
+    if (btn) btn.innerHTML = '<i class="fas fa-list"></i> Products';
 }
 
-function removeSelectedItems(){
-    var checks = document.querySelectorAll('.select-item:checked');
-    if(!checks.length){ alert('Please select at least one item to remove.'); return; }
-    if(!confirm('Are you sure you want to remove the selected items?')) return;
-    var ids = [];
-    checks.forEach(function(c){ ids.push(c.value); });
-
-    var f = document.createElement('form'); f.method='POST'; f.action = window.location.href.split('?')[0];
-    var a = document.createElement('input'); a.type='hidden'; a.name='action'; a.value='remove_items'; f.appendChild(a);
-    ids.forEach(function(id){ var i = document.createElement('input'); i.type='hidden'; i.name='selected_items[]'; i.value=id; f.appendChild(i); });
-    document.body.appendChild(f); f.submit();
+function showInventoryPanel() {
+    const tools = document.querySelector('.inventory-tools');
+    const btn = document.getElementById('showItemsBtn');
+    const stats = document.querySelector('.inventory-stats');
+    const itemsStats = document.querySelector('.items-stats');
+    // Show all main-inventory panels except itemsPanel
+    const inventoryPanels = document.querySelectorAll('.main-inventory');
+    inventoryPanels.forEach(panel => {
+        if (panel.id === 'itemsPanel') {
+            panel.style.display = 'none';
+        } else {
+            panel.style.display = '';
+        }
+    });
+    if (tools) tools.style.display = '';
+    if (stats) stats.style.display = '';
+    if (itemsStats) itemsStats.style.display = 'none';
+    if (btn) btn.innerHTML = '<i class="fas fa-boxes"></i> Items';
 }
 
-function deleteSingleItem(id){
-    if(!confirm('Delete this item?')) return;
-    var f = document.createElement('form'); f.method='POST'; f.action = window.location.href.split('?')[0];
-    var a = document.createElement('input'); a.type='hidden'; a.name='action'; a.value='remove_items'; f.appendChild(a);
-    var i = document.createElement('input'); i.type='hidden'; i.name='selected_items[]'; i.value = id; f.appendChild(i);
-    document.body.appendChild(f); f.submit();
+function openAddItemModal() {
+    // Create modal if not present
+    let modal = document.getElementById('addItemModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'addItemModal';
+        modal.className = 'modal';
+        modal.innerHTML = `
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Add Item</h3>
+                    <span class="close" onclick="closeAddItemModal()">&times;</span>
+                </div>
+                <div class="modal-body">
+                    <form method="POST">
+                        <input type="hidden" name="action" value="add_item">
+                        <div class="form-group">
+                            <label class="form-label">Item Code</label>
+                            <input type="text" name="item_code" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Item Name</label>
+                            <input type="text" name="item_name" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Measurement</label>
+                            <input type="text" name="measurement" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Category</label>
+                            <select name="category_item" class="form-control">
+                                <option value="Ingredients">Ingredients</option>
+                                <option value="Addon">Addon</option>
+                                <option value="Cups">Cups</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Quantity</label>
+                            <input type="number" name="quantity_item" class="form-control" value="0" min="0">
+                        </div>
+                        <div style="text-align: right; margin-top: 10px;">
+                            <button type="button" class="btn" onclick="closeAddItemModal()">Cancel</button>
+                            <button type="submit" class="btn btn-success">Add Item</button>
+                        </div>
+                    </form>
+                </div>
+            </div>`;
+        document.body.appendChild(modal);
+    }
+    modal.style.display = 'block';
 }
+
+function closeAddItemModal() {
+    const modal = document.getElementById('addItemModal');
+    if (modal) modal.style.display = 'none';
+}
+
+function filterItems() {
+    const searchTerm = document.getElementById('itemsSearchInput').value.toLowerCase();
+    const categoryFilter = document.getElementById('itemsCategoryFilter').value;
+    const rows = document.querySelectorAll('#itemsTable tbody tr');
+    rows.forEach(row => {
+        if (row.classList.contains('empty-row')) return;
+        const name = row.dataset.itemName || '';
+        const category = row.dataset.itemCategory || '';
+        let show = true;
+        if (searchTerm && !name.includes(searchTerm) && !category.toLowerCase().includes(searchTerm)) show = false;
+        if (categoryFilter && category !== categoryFilter) show = false;
+        row.style.display = show ? '' : 'none';
+    });
+}
+
+// ensure clicking items button toggles panels back/forth if needed
+// Wire header Items button to toggle panels
+document.addEventListener('DOMContentLoaded', function() {
+    const showItemsBtn = document.getElementById('showItemsBtn');
+    if (showItemsBtn) {
+        showItemsBtn.addEventListener('click', function() {
+            const itemsPanel = document.getElementById('itemsPanel');
+            if (!itemsPanel) return;
+            const computed = window.getComputedStyle(itemsPanel).display;
+            if (computed === 'none') {
+                showItemsPanel();
+            } else {
+                showInventoryPanel();
+            }
+        });
+    }
+});
+
 </script>
 
 <?php include '../components/layout-end.php'; ?>
