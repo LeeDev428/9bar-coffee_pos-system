@@ -1,14 +1,8 @@
 <?php
-// Admin Sales History Page
-$page_title = 'SALES HISTORY';
-include '../components/main-layout.php';
-
 // Date filters
 $startDate = $_GET['start_date'] ?? date('Y-m-d', strtotime('-30 days'));
 $endDate = $_GET['end_date'] ?? date('Y-m-d');
 $search = $_GET['q'] ?? '';
-
-// Build query with optional search
 $baseParams = [$startDate, $endDate];
 $searchSql = '';
 if ($search) {
@@ -19,6 +13,37 @@ if ($search) {
     $baseParams[] = $searchTerm;
 }
 
+// Export to CSV handling (simple) - MUST RUN BEFORE ANY OUTPUT
+if (isset($_GET['export']) && $_GET['export'] === 'csv') {
+    require_once '../../includes/database.php'; // Ensure DB connection
+    $db = new Database(); // If not already initialized
+    $exportSql = "SELECT s.sale_id, s.sale_date, s.total_amount, s.payment_method, u.username,
+            (SELECT COUNT(*) FROM sale_items si2 WHERE si2.sale_id = s.sale_id) as item_count
+     FROM sales s
+     JOIN users u ON s.user_id = u.user_id
+     LEFT JOIN sale_items si ON s.sale_id = si.sale_id
+     LEFT JOIN products p ON si.product_id = p.product_id
+     WHERE DATE(s.sale_date) BETWEEN ? AND ? " . $searchSql . "
+     GROUP BY s.sale_id
+     ORDER BY s.sale_date DESC";
+    $exportRows = $db->fetchAll($exportSql, $baseParams);
+    header('Content-Type: text/csv');
+    header('Content-Disposition: attachment; filename="sales_export_' . $startDate . '_to_' . $endDate . '.csv"');
+    $out = fopen('php://output', 'w');
+    fputcsv($out, ['Sale ID', 'Date', 'Staff', 'Items', 'Payment', 'Amount']);
+    foreach ($exportRows as $t) {
+        fputcsv($out, [$t['sale_id'], $t['sale_date'], $t['username'], $t['item_count'], $t['payment_method'], $t['total_amount']]);
+    }
+    fclose($out);
+    exit();
+}
+
+// Admin Sales History Page
+$page_title = 'SALES HISTORY';
+include '../components/main-layout.php';
+
+// Build query with optional search
+// ...existing code...
 // Pagination
 $perPage = 20;
 $page = max(1, intval($_GET['page'] ?? 1));
@@ -53,32 +78,6 @@ $today = date('Y-m-d');
 $monthStart = date('Y-m-01');
 $todaySales = $db->fetchOne("SELECT IFNULL(SUM(total_amount),0) as total FROM sales WHERE DATE(sale_date)=?", [$today]);
 $monthlySales = $db->fetchOne("SELECT IFNULL(SUM(total_amount),0) as total FROM sales WHERE DATE(sale_date) BETWEEN ? AND ?", [$monthStart, $today]);
-
-// Export to CSV handling (simple)
-if (isset($_GET['export']) && $_GET['export'] === 'csv') {
-    // Fetch full filtered set (no pagination)
-    $exportSql = "SELECT s.sale_id, s.sale_date, s.total_amount, s.payment_method, u.username,
-            (SELECT COUNT(*) FROM sale_items si2 WHERE si2.sale_id = s.sale_id) as item_count
-     FROM sales s
-     JOIN users u ON s.user_id = u.user_id
-     LEFT JOIN sale_items si ON s.sale_id = si.sale_id
-     LEFT JOIN products p ON si.product_id = p.product_id
-     WHERE DATE(s.sale_date) BETWEEN ? AND ? " . $searchSql . "
-     GROUP BY s.sale_id
-     ORDER BY s.sale_date DESC";
-
-    $exportRows = $db->fetchAll($exportSql, $baseParams);
-
-    header('Content-Type: text/csv');
-    header('Content-Disposition: attachment; filename="sales_export_' . $startDate . '_to_' . $endDate . '.csv"');
-    $out = fopen('php://output', 'w');
-    fputcsv($out, ['Sale ID', 'Date', 'Staff', 'Items', 'Payment', 'Amount']);
-    foreach ($exportRows as $t) {
-        fputcsv($out, [$t['sale_id'], $t['sale_date'], $t['username'], $t['item_count'], $t['payment_method'], $t['total_amount']]);
-    }
-    fclose($out);
-    exit();
-}
 ?>
 
 <style>
