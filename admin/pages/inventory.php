@@ -1,6 +1,8 @@
 <?php
 // Admin Inventory Management Page
 $page_title = 'INVENTORY MANAGEMENT';
+// flag to request showing the Items panel after a POST (keeps user on Items list)
+$openItemsPanel = false;
 include '../components/main-layout.php';
 
 // Handle form submissions
@@ -32,11 +34,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $itemCode, $itemName, $measurement, $categoryItem, $quantityItem, $_SESSION['user_id']
                     ]);
 
+                    // Keep the Items panel open after adding an item
+                    $openItemsPanel = true;
+
                     showAlert('Item added successfully!', 'success');
                 } catch (Exception $e) {
                     showAlert('Error adding item: ' . $e->getMessage(), 'error');
                 }
                 break;
+            // update_item_stock handler removed (Stocks now shown as status only)
             case 'stock_adjustment':
                 try {
                     $productId = intval($_POST['product_id']);
@@ -382,6 +388,8 @@ tbody tr:hover {
     margin-bottom: 15px;
 }
 
+/* inline-stock-form removed: Stocks is now a read-only Status + Quantity column */
+
 .form-label {
     display: block;
     margin-bottom: 5px;
@@ -430,6 +438,9 @@ tbody tr:hover {
     color: #7f8c8d;
     font-size: 11px;
 }
+/* Items stats adjustments when placed in the right tools column */
+.items-stats .stat-card { margin: 0; box-shadow: none; padding: 16px; }
+.items-stats { width: calc(100% + 40px); display: flex; gap: 0; }
 </style>
 
 <div class="inventory-header">
@@ -438,9 +449,6 @@ tbody tr:hover {
         <p style="color: #7f8c8d; margin: 5px 0 0 0;">Monitor and manage your stock levels</p>
     </div>
     <div>
-        <button class="btn btn-success" onclick="showBulkReorderModal()">
-            <i class="fas fa-shopping-cart"></i> Bulk Reorder
-        </button>
         <button class="btn btn-primary" id="showItemsBtn">
             <i class="fas fa-boxes"></i> Items
         </button>
@@ -470,17 +478,8 @@ tbody tr:hover {
     </div>
 </div>
 
-<!-- Items Stats (hidden by default, shown when Items tab active) -->
-<div class="items-stats" style="display:none; margin-bottom: 20px;">
-    <div class="stat-card" style="flex:1; margin-right: 10px;">
-        <div class="stat-value stat-info"><?php echo $totalItems; ?></div>
-        <div class="stat-label">Total Items</div>
-    </div>
-    <div class="stat-card" style="flex:1;">
-        <div class="stat-value stat-low"><?php echo $lowItemCount; ?></div>
-        <div class="stat-label">Low Stock Items</div>
-    </div>
-</div>
+<!-- Items Stats (hidden by default, moved to right column for alignment) -->
+<!-- moved into .inventory-tools below to align with product Low Stock card -->
 
 <div class="inventory-content">
     <!-- Main Inventory Table -->
@@ -583,8 +582,9 @@ tbody tr:hover {
                         <th>Item Code</th>
                         <th>Item Name</th>
                         <th>Measurement</th>
-                        <th>Category</th>
-                        <th>Quantity</th>
+                    <th>Category</th>
+                    <th>Stocks</th>
+                    <th>Quantity</th>
                         <th>Date</th>
                         <th>Time</th>
                         <th>Added By</th>
@@ -593,12 +593,20 @@ tbody tr:hover {
                 <tbody>
                     <?php if (!empty($itemsList)): ?>
                         <?php foreach ($itemsList as $it): ?>
+                        <?php $itemQty = intval($it['quantity']); ?>
                         <tr data-item-name="<?php echo strtolower($it['item_name']); ?>" data-item-category="<?php echo htmlspecialchars($it['category']); ?>">
                             <td><?php echo htmlspecialchars($it['item_code']); ?></td>
                             <td><?php echo htmlspecialchars($it['item_name']); ?></td>
                             <td><?php echo htmlspecialchars($it['measurement']); ?></td>
                             <td><?php echo htmlspecialchars($it['category']); ?></td>
-                            <td><?php echo intval($it['quantity']); ?></td>
+                            <td>
+                                <?php if ($itemQty <= 0): ?>
+                                    <span class="stock-status status-low">LOW</span>
+                                <?php else: ?>
+                                    <span class="stock-status status-normal">IN STOCK</span>
+                                <?php endif; ?>
+                            </td>
+                            <td><?php echo $itemQty; ?></td>
                             <td><?php echo $it['date_added'] ? date('M j, Y', strtotime($it['date_added'])) : 'N/A'; ?></td>
                             <td><?php echo $it['time_added'] ? date('H:i', strtotime($it['time_added'])) : 'N/A'; ?></td>
                             <td><?php echo htmlspecialchars($it['added_by_name'] ?? ''); ?></td>
@@ -614,6 +622,7 @@ tbody tr:hover {
                             <td>&nbsp;</td>
                             <td>&nbsp;</td>
                             <td>&nbsp;</td>
+                            <td>&nbsp;</td>
                         </tr>
                     <?php endif; ?>
                 </tbody>
@@ -622,20 +631,7 @@ tbody tr:hover {
     </div>
     <!-- Tools Panel -->
     <div class="inventory-tools">
-        <div class="tools-section">
-            <div class="section-title">Quick Actions</div>
-            <div style="display: flex; flex-direction: column; gap: 10px;">
-                <button class="btn btn-success" onclick="showBulkReorderModal()">
-                    <i class="fas fa-shopping-cart"></i> Bulk Reorder Low Stock
-                </button>
-                <button class="btn btn-info" onclick="exportInventory()">
-                    <i class="fas fa-download"></i> Export Report
-                </button>
-                <button class="btn btn-warning" onclick="showStockAlerts()">
-                    <i class="fas fa-exclamation-triangle"></i> Stock Alerts
-                </button>
-            </div>
-        </div>
+        <!-- Quick Actions removed per request; only Items Summary info card will remain below -->
         
         <div class="tools-section">
             <div class="section-title">Recent Activities</div>
@@ -653,6 +649,21 @@ tbody tr:hover {
                     </div>
                 </div>
                 <?php endforeach; ?>
+            </div>
+        </div>
+        
+        <!-- Items Stats (placed in tools column to align under Low Stock card) -->
+        <div class="tools-section" id="itemsStatsContainer" style="display: none; padding: 0; margin: 0; border-top: none;">
+            <div class="section-title">Items Summary</div>
+            <div class="items-stats" style="display:flex; gap:0; margin: 0 -20px;">
+                <div class="stat-card" style="flex:1; margin: 0; border-radius: 6px 0 0 6px;">
+                    <div class="stat-value stat-info"><?php echo $totalItems; ?></div>
+                    <div class="stat-label">Total Items</div>
+                </div>
+                <div class="stat-card" style="flex:1; margin: 0; border-radius: 0 6px 6px 0;">
+                    <div class="stat-value stat-low"><?php echo $lowItemCount; ?></div>
+                    <div class="stat-label">Low Stock Items</div>
+                </div>
             </div>
         </div>
     </div>
@@ -830,36 +841,47 @@ function showBulkReorderModal() {
 }
 
 function exportInventory() {
-    // Create CSV export
-    const data = [];
-    const rows = document.querySelectorAll('#inventoryTable tbody tr');
-    
-    // Add headers
-    data.push(['Product', 'Category', 'Current Stock', 'Min Stock', 'Max Stock', 'Reorder Level', 'Status']);
-    
+    // Export the currently visible table: itemsTable if items panel is active, otherwise inventoryTable
+    const itemsPanel = document.getElementById('itemsPanel');
+    const useItems = itemsPanel && window.getComputedStyle(itemsPanel).display !== 'none';
+    const tableId = useItems ? 'itemsTable' : 'inventoryTable';
+    const table = document.getElementById(tableId);
+    if (!table) {
+        alert('No table found to export.');
+        return;
+    }
+
+    // Build headers dynamically from the table's thead
+    const headers = [];
+    table.querySelectorAll('thead th').forEach(th => headers.push(th.textContent.trim()));
+
+    const data = [headers];
+
+    // Collect visible rows
+    const rows = table.querySelectorAll('tbody tr');
     rows.forEach(row => {
-        if (row.style.display !== 'none') {
-            const cells = row.querySelectorAll('td');
-            data.push([
-                cells[0].textContent.trim(),
-                cells[1].textContent.trim(),
-                cells[2].textContent.trim(),
-                cells[3].textContent.trim(),
-                cells[4].textContent.trim(),
-                cells[6].textContent.trim()
-            ]);
-        }
+        if (row.classList.contains('empty-row')) return;
+        if (row.style.display === 'none') return;
+        const cells = row.querySelectorAll('td');
+        const rowData = [];
+        cells.forEach(cell => rowData.push(cell.textContent.trim()));
+        data.push(rowData);
     });
-    
-    // Convert to CSV
-    const csv = data.map(row => row.join(',')).join('\n');
-    
-    // Download
+
+    if (data.length <= 1) {
+        alert('No rows to export.');
+        return;
+    }
+
+    // Proper CSV quoting for fields containing commas/newlines/quotes
+    const csv = data.map(r => r.map(f => '"' + String(f).replace(/"/g, '""') + '"').join(',')).join('\n');
+
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'inventory_report_' + new Date().toISOString().split('T')[0] + '.csv';
+    const baseName = useItems ? 'items_report_' : 'inventory_report_';
+    a.download = baseName + new Date().toISOString().split('T')[0] + '.csv';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -890,7 +912,7 @@ function showItemsPanel() {
     const tools = document.querySelector('.inventory-tools');
     const btn = document.getElementById('showItemsBtn');
     const stats = document.querySelector('.inventory-stats');
-    const itemsStats = document.querySelector('.items-stats');
+    const itemsStats = document.getElementById('itemsStatsContainer');
     // Hide all other main-inventory panels and show itemsPanel
     const inventoryPanels = document.querySelectorAll('.main-inventory');
     inventoryPanels.forEach(panel => {
@@ -900,9 +922,10 @@ function showItemsPanel() {
             panel.style.display = 'none';
         }
     });
-    if (tools) tools.style.display = 'none';
+    // keep tools visible so items stats can appear in the right column
+    if (tools) tools.style.display = '';
     if (stats) stats.style.display = 'none';
-    if (itemsStats) { itemsStats.style.display = 'flex'; itemsStats.style.gap = '10px'; }
+    if (itemsStats) { itemsStats.style.display = 'block'; }
     if (btn) btn.innerHTML = '<i class="fas fa-list"></i> Products';
 }
 
@@ -910,7 +933,7 @@ function showInventoryPanel() {
     const tools = document.querySelector('.inventory-tools');
     const btn = document.getElementById('showItemsBtn');
     const stats = document.querySelector('.inventory-stats');
-    const itemsStats = document.querySelector('.items-stats');
+    const itemsStats = document.getElementById('itemsStatsContainer');
     // Show all main-inventory panels except itemsPanel
     const inventoryPanels = document.querySelectorAll('.main-inventory');
     inventoryPanels.forEach(panel => {
@@ -1017,5 +1040,14 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 </script>
+
+<?php if ($openItemsPanel): ?>
+<script>
+// Ensure the Items panel is shown after a POST that set $openItemsPanel
+document.addEventListener('DOMContentLoaded', function(){
+    try { showItemsPanel(); } catch(e) { /* silent */ }
+});
+</script>
+<?php endif; ?>
 
 <?php include '../components/layout-end.php'; ?>
