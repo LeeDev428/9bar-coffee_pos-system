@@ -1,47 +1,14 @@
 <?php
 // Admin Inventory Management Page
 $page_title = 'INVENTORY MANAGEMENT';
-// flag to request showing the Items panel after a POST (keeps user on Items list)
-$openItemsPanel = false;
+// Items panel removed; no need for $openItemsPanel flag
 include '../components/main-layout.php';
 
 // Handle form submissions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['action'])) {
         switch ($_POST['action']) {
-            case 'add_item':
-                try {
-                    // ensure table exists
-                    $db->query("CREATE TABLE IF NOT EXISTS inventory_items (
-                        item_id INT AUTO_INCREMENT PRIMARY KEY,
-                        item_code VARCHAR(100),
-                        item_name VARCHAR(255),
-                        measurement VARCHAR(100),
-                        category VARCHAR(100),
-                        quantity INT DEFAULT 0,
-                        date_added DATE,
-                        time_added TIME,
-                        added_by INT
-                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
-
-                    $itemCode = sanitizeInput($_POST['item_code'] ?? '');
-                    $itemName = sanitizeInput($_POST['item_name'] ?? '');
-                    $measurement = sanitizeInput($_POST['measurement'] ?? '');
-                    $categoryItem = sanitizeInput($_POST['category_item'] ?? '');
-                    $quantityItem = intval($_POST['quantity_item'] ?? 0);
-
-                    $db->query("INSERT INTO inventory_items (item_code, item_name, measurement, category, quantity, date_added, time_added, added_by) VALUES (?, ?, ?, ?, ?, CURDATE(), CURTIME(), ?)", [
-                        $itemCode, $itemName, $measurement, $categoryItem, $quantityItem, $_SESSION['user_id']
-                    ]);
-
-                    // Keep the Items panel open after adding an item
-                    $openItemsPanel = true;
-
-                    showAlert('Item added successfully!', 'success');
-                } catch (Exception $e) {
-                    showAlert('Error adding item: ' . $e->getMessage(), 'error');
-                }
-                break;
+            // Items management removed: add_item handling has been removed since the Items UI was deleted
             // update_item_stock handler removed (Stocks now shown as status only)
             case 'stock_adjustment':
                 try {
@@ -184,25 +151,39 @@ foreach ($itemsList as $it) {
 
 <style>
 .inventory-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 30px;
+    display: block; /* ensure header spans full width */
+    width: 100%;
+    box-sizing: border-box;
+    margin-bottom: 18px;
+    padding: 0 8px; /* small horizontal padding to align with page content */
 }
 
 .inventory-stats {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 20px;
-    margin-bottom: 30px;
+    grid-template-columns: repeat(4, minmax(0, 1fr)); /* evenly distribute 4 columns */
+    gap: 18px;
+    width: 100%;
+    margin: 0;
+}
+
+@media (max-width: 900px) {
+    .inventory-stats { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 480px) {
+    .inventory-stats { grid-template-columns: 1fr; }
 }
 
 .stat-card {
     background: white;
-    padding: 20px;
+    padding: 22px;
     border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.06);
     text-align: center;
+    min-height: 96px; /* make cards more prominent */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
 }
 
 .stat-value {
@@ -424,42 +405,10 @@ tbody tr:hover {
     overflow-y: auto;
 }
 
-.activity-item {
-    padding: 10px;
-    border-bottom: 1px solid #f0f0f0;
-    font-size: 12px;
-}
-
-.activity-item:last-child {
-    border-bottom: none;
-}
-
-.activity-date {
-    color: #7f8c8d;
-    font-size: 11px;
-}
-/* Items stats adjustments when placed in the right tools column */
-.items-stats .stat-card { margin: 0; box-shadow: none; padding: 16px; }
-.items-stats { width: calc(100% + 40px); display: flex; gap: 0; }
 </style>
 
 <div class="inventory-header">
-    <div>
-        <h2 style="margin: 0; color: #2c3e50;">Inventory Management</h2>
-        <p style="color: #7f8c8d; margin: 5px 0 0 0;">Monitor and manage your stock levels</p>
-    </div>
-    <div>
-        <button class="btn btn-primary" id="showItemsBtn">
-            <i class="fas fa-boxes"></i> Items
-        </button>
-        <button class="btn btn-info" onclick="exportInventory()">
-            <i class="fas fa-download"></i> Export
-        </button>
-    </div>
-</div>
-
-<!-- Inventory Statistics -->
-<div class="inventory-stats">
+    <div class="inventory-stats">
     <div class="stat-card">
         <div class="stat-value stat-info"><?php echo $totalProducts; ?></div>
         <div class="stat-label">Total Products</div>
@@ -475,6 +424,7 @@ tbody tr:hover {
     <div class="stat-card">
         <div class="stat-value stat-success">₱<?php echo number_format($totalValue, 2); ?></div>
         <div class="stat-label">Total Inventory Value</div>
+    </div>
     </div>
 </div>
 
@@ -560,75 +510,7 @@ tbody tr:hover {
         </div>
     </div>
     
-    <!-- Items Panel (Add Items tab) -->
-    <div class="main-inventory" id="itemsPanel" style="display:none;">
-        <div class="filters-bar">
-            <input type="text" class="form-control" id="itemsSearchInput" placeholder="Search items..." onkeyup="filterItems()">
-            <select class="form-control" id="itemsCategoryFilter" onchange="filterItems()">
-                <option value="">All Categories</option>
-                <option value="Ingredients">Ingredients</option>
-                <option value="Addon">Addon</option>
-                <option value="Cups">Cups</option>
-            </select>
-            <div style="margin-left: auto;">
-                <button class="btn btn-success" onclick="openAddItemModal()"><i class="fas fa-plus"></i> Add Item</button>
-            </div>
-        </div>
-
-        <div class="table-container">
-            <table id="itemsTable">
-                <thead>
-                    <tr>
-                        <th>Item Code</th>
-                        <th>Item Name</th>
-                        <th>Measurement</th>
-                    <th>Category</th>
-                    <th>Stocks</th>
-                    <th>Quantity</th>
-                        <th>Date</th>
-                        <th>Time</th>
-                        <th>Added By</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php if (!empty($itemsList)): ?>
-                        <?php foreach ($itemsList as $it): ?>
-                        <?php $itemQty = intval($it['quantity']); ?>
-                        <tr data-item-name="<?php echo strtolower($it['item_name']); ?>" data-item-category="<?php echo htmlspecialchars($it['category']); ?>">
-                            <td><?php echo htmlspecialchars($it['item_code']); ?></td>
-                            <td><?php echo htmlspecialchars($it['item_name']); ?></td>
-                            <td><?php echo htmlspecialchars($it['measurement']); ?></td>
-                            <td><?php echo htmlspecialchars($it['category']); ?></td>
-                            <td>
-                                <?php if ($itemQty <= 0): ?>
-                                    <span class="stock-status status-low">LOW</span>
-                                <?php else: ?>
-                                    <span class="stock-status status-normal">IN STOCK</span>
-                                <?php endif; ?>
-                            </td>
-                            <td><?php echo $itemQty; ?></td>
-                            <td><?php echo $it['date_added'] ? date('M j, Y', strtotime($it['date_added'])) : 'N/A'; ?></td>
-                            <td><?php echo $it['time_added'] ? date('H:i', strtotime($it['time_added'])) : 'N/A'; ?></td>
-                            <td><?php echo htmlspecialchars($it['added_by_name'] ?? ''); ?></td>
-                        </tr>
-                        <?php endforeach; ?>
-                    <?php else: ?>
-                        <tr class="empty-row">
-                            <td style="text-align:center; color:#777;">No items found.</td>
-                            <td>&nbsp;</td>
-                            <td>&nbsp;</td>
-                            <td>&nbsp;</td>
-                            <td>&nbsp;</td>
-                            <td>&nbsp;</td>
-                            <td>&nbsp;</td>
-                            <td>&nbsp;</td>
-                            <td>&nbsp;</td>
-                        </tr>
-                    <?php endif; ?>
-                </tbody>
-            </table>
-        </div>
-    </div>
+        <!-- Items panel removed per request -->
     <!-- Tools Panel -->
     <div class="inventory-tools">
         <!-- Quick Actions removed per request; only Items Summary info card will remain below -->
@@ -652,20 +534,7 @@ tbody tr:hover {
             </div>
         </div>
         
-        <!-- Items Stats (placed in tools column to align under Low Stock card) -->
-        <div class="tools-section" id="itemsStatsContainer" style="display: none; padding: 0; margin: 0; border-top: none;">
-            <div class="section-title">Items Summary</div>
-            <div class="items-stats" style="display:flex; gap:0; margin: 0 -20px;">
-                <div class="stat-card" style="flex:1; margin: 0; border-radius: 6px 0 0 6px;">
-                    <div class="stat-value stat-info"><?php echo $totalItems; ?></div>
-                    <div class="stat-label">Total Items</div>
-                </div>
-                <div class="stat-card" style="flex:1; margin: 0; border-radius: 0 6px 6px 0;">
-                    <div class="stat-value stat-low"><?php echo $lowItemCount; ?></div>
-                    <div class="stat-label">Low Stock Items</div>
-                </div>
-            </div>
-        </div>
+        <!-- Items summary removed -->
     </div>
 </div>
 
@@ -841,11 +710,8 @@ function showBulkReorderModal() {
 }
 
 function exportInventory() {
-    // Export the currently visible table: itemsTable if items panel is active, otherwise inventoryTable
-    const itemsPanel = document.getElementById('itemsPanel');
-    const useItems = itemsPanel && window.getComputedStyle(itemsPanel).display !== 'none';
-    const tableId = useItems ? 'itemsTable' : 'inventoryTable';
-    const table = document.getElementById(tableId);
+    // Export the inventoryTable
+    const table = document.getElementById('inventoryTable');
     if (!table) {
         alert('No table found to export.');
         return;
@@ -880,7 +746,7 @@ function exportInventory() {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    const baseName = useItems ? 'items_report_' : 'inventory_report_';
+    const baseName = 'inventory_report_';
     a.download = baseName + new Date().toISOString().split('T')[0] + '.csv';
     document.body.appendChild(a);
     a.click();
@@ -906,148 +772,5 @@ window.onclick = function(event) {
     });
 }
 
-// Items panel & Add Item modal functions
-function showItemsPanel() {
-    const itemsPanel = document.getElementById('itemsPanel');
-    const tools = document.querySelector('.inventory-tools');
-    const btn = document.getElementById('showItemsBtn');
-    const stats = document.querySelector('.inventory-stats');
-    const itemsStats = document.getElementById('itemsStatsContainer');
-    // Hide all other main-inventory panels and show itemsPanel
-    const inventoryPanels = document.querySelectorAll('.main-inventory');
-    inventoryPanels.forEach(panel => {
-        if (panel.id === 'itemsPanel') {
-            panel.style.display = '';
-        } else {
-            panel.style.display = 'none';
-        }
-    });
-    // keep tools visible so items stats can appear in the right column
-    if (tools) tools.style.display = '';
-    if (stats) stats.style.display = 'none';
-    if (itemsStats) { itemsStats.style.display = 'block'; }
-    if (btn) btn.innerHTML = '<i class="fas fa-list"></i> Products';
-}
-
-function showInventoryPanel() {
-    const tools = document.querySelector('.inventory-tools');
-    const btn = document.getElementById('showItemsBtn');
-    const stats = document.querySelector('.inventory-stats');
-    const itemsStats = document.getElementById('itemsStatsContainer');
-    // Show all main-inventory panels except itemsPanel
-    const inventoryPanels = document.querySelectorAll('.main-inventory');
-    inventoryPanels.forEach(panel => {
-        if (panel.id === 'itemsPanel') {
-            panel.style.display = 'none';
-        } else {
-            panel.style.display = '';
-        }
-    });
-    if (tools) tools.style.display = '';
-    if (stats) stats.style.display = '';
-    if (itemsStats) itemsStats.style.display = 'none';
-    if (btn) btn.innerHTML = '<i class="fas fa-boxes"></i> Items';
-}
-
-function openAddItemModal() {
-    // Create modal if not present
-    let modal = document.getElementById('addItemModal');
-    if (!modal) {
-        modal = document.createElement('div');
-        modal.id = 'addItemModal';
-        modal.className = 'modal';
-        modal.innerHTML = `
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h3>Add Item</h3>
-                    <span class="close" onclick="closeAddItemModal()">&times;</span>
-                </div>
-                <div class="modal-body">
-                    <form method="POST">
-                        <input type="hidden" name="action" value="add_item">
-                        <div class="form-group">
-                            <label class="form-label">Item Code</label>
-                            <input type="text" name="item_code" class="form-control" required>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Item Name</label>
-                            <input type="text" name="item_name" class="form-control" required>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Measurement</label>
-                            <input type="text" name="measurement" class="form-control">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Category</label>
-                            <select name="category_item" class="form-control">
-                                <option value="Ingredients">Ingredients</option>
-                                <option value="Addon">Addon</option>
-                                <option value="Cups">Cups</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Quantity</label>
-                            <input type="number" name="quantity_item" class="form-control" value="0" min="0">
-                        </div>
-                        <div style="text-align: right; margin-top: 10px;">
-                            <button type="button" class="btn" onclick="closeAddItemModal()">Cancel</button>
-                            <button type="submit" class="btn btn-success">Add Item</button>
-                        </div>
-                    </form>
-                </div>
-            </div>`;
-        document.body.appendChild(modal);
-    }
-    modal.style.display = 'block';
-}
-
-function closeAddItemModal() {
-    const modal = document.getElementById('addItemModal');
-    if (modal) modal.style.display = 'none';
-}
-
-function filterItems() {
-    const searchTerm = document.getElementById('itemsSearchInput').value.toLowerCase();
-    const categoryFilter = document.getElementById('itemsCategoryFilter').value;
-    const rows = document.querySelectorAll('#itemsTable tbody tr');
-    rows.forEach(row => {
-        if (row.classList.contains('empty-row')) return;
-        const name = row.dataset.itemName || '';
-        const category = row.dataset.itemCategory || '';
-        let show = true;
-        if (searchTerm && !name.includes(searchTerm) && !category.toLowerCase().includes(searchTerm)) show = false;
-        if (categoryFilter && category !== categoryFilter) show = false;
-        row.style.display = show ? '' : 'none';
-    });
-}
-
-// ensure clicking items button toggles panels back/forth if needed
-// Wire header Items button to toggle panels
-document.addEventListener('DOMContentLoaded', function() {
-    const showItemsBtn = document.getElementById('showItemsBtn');
-    if (showItemsBtn) {
-        showItemsBtn.addEventListener('click', function() {
-            const itemsPanel = document.getElementById('itemsPanel');
-            if (!itemsPanel) return;
-            const computed = window.getComputedStyle(itemsPanel).display;
-            if (computed === 'none') {
-                showItemsPanel();
-            } else {
-                showInventoryPanel();
-            }
-        });
-    }
-});
-
-</script>
-
-<?php if ($openItemsPanel): ?>
-<script>
-// Ensure the Items panel is shown after a POST that set $openItemsPanel
-document.addEventListener('DOMContentLoaded', function(){
-    try { showItemsPanel(); } catch(e) { /* silent */ }
-});
-</script>
-<?php endif; ?>
-
+// Ensure the page finishes with the standard layout end include
 <?php include '../components/layout-end.php'; ?>
