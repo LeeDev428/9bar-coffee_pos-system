@@ -460,10 +460,7 @@ tbody tr:hover {
             <button class="btn btn-primary" onclick="openAddModal()">
                 <i class="fas fa-plus"></i> Add New Product
             </button>
-            <!-- Three matching view buttons placed next to Add New Product -->
-            <button type="button" class="btn btn-sm btn-outline" id="viewSuppliesBtn" onclick="showSuppliesView()">View Supplies</button>
-            <button type="button" class="btn btn-sm btn-outline" id="viewCoffeeBtn" onclick="showCoffeeView()">View Coffee</button>
-            <button type="button" class="btn btn-sm btn-outline" id="viewFoodBtn" onclick="showFoodView()">View Food</button>
+            <!-- View buttons removed: main grid will default to combined Coffee + Food view -->
         </div>
     </div>
 </div>
@@ -639,11 +636,7 @@ try {
         <div class="modal-body">
             <form method="POST" enctype="multipart/form-data" id="addProductForm">
                 <input type="hidden" name="action" value="add_product">
-                <div style="display:flex; gap:10px; margin-bottom:12px;">
-                    <button type="button" class="btn btn-sm btn-coffee" id="addCoffeeBtn">Add Coffee</button>
-                    <button type="button" class="btn btn-sm btn-success" id="addFoodBtn">Add Food</button>
-                    <button type="button" class="btn btn-sm btn-outline" id="addSuppliesBtn">Add Supplies</button>
-                </div>
+                <!-- Default modal fields shown for both Coffee and Food (mode buttons removed) -->
                 
                 
                 <div class="form-group">
@@ -965,117 +958,7 @@ window.onclick = function(event) {
 </script>
  
 
-<script>
-// Add Product modal mode toggles: Coffee (minimal) vs Food (full)
-document.addEventListener('DOMContentLoaded', function(){
-    const addCoffeeBtn = document.getElementById('addCoffeeBtn');
-    const addFoodBtn = document.getElementById('addFoodBtn');
-    const form = document.getElementById('addProductForm');
 
-    // category select and saved original options for filtering
-    const addCategory = document.getElementById('add_category');
-    const originalCategoryOptions = addCategory ? Array.from(addCategory.options).map(o => ({ value: o.value, text: o.text })) : [];
-
-    // allowed category names (lowercase) for each mode
-    const coffeeCategoryNames = ['hot coffee', 'iced coffee', 'tea'];
-    const foodCategoryNames = ['pastries', 'sandwiches'];
-
-    function filterCategories(allowedNames) {
-        if (!addCategory) return;
-        // rebuild options: keep a default placeholder
-        addCategory.innerHTML = '';
-        const defaultOpt = document.createElement('option');
-        defaultOpt.value = '';
-        defaultOpt.text = 'Select Category';
-        addCategory.appendChild(defaultOpt);
-
-        originalCategoryOptions.forEach(opt => {
-            if (allowedNames.includes(opt.text.trim().toLowerCase())) {
-                const o = document.createElement('option');
-                o.value = opt.value;
-                o.text = opt.text;
-                addCategory.appendChild(o);
-            }
-        });
-    }
-
-    // fields to hide for coffee
-    const coffeeHide = ['add_price','add_cost_price','add_current_stock','add_minimum_stock','add_description'];
-
-    // fields to hide for supplies (we will show only name, category, price, cost, initial stock, minimum stock)
-    const suppliesHide = ['add_barcode','add_description','add_maximum_stock','add_reorder_level'];
-
-    function setModeCoffee() {
-        coffeeHide.forEach(id => {
-            const el = document.getElementById(id);
-            if (!el) return;
-            el.closest('.form-group').style.display = 'none';
-            el.required = false;
-        });
-        // ensure barcode and product name and category and image are required
-        document.getElementById('add_barcode').required = true;
-        form.querySelector('[name="product_name"]').required = true;
-        if (addCategory) addCategory.required = true;
-        // show only coffee-related categories
-        filterCategories(coffeeCategoryNames);
-    }
-
-    function setModeFood() {
-        coffeeHide.forEach(id => {
-            const el = document.getElementById(id);
-            if (!el) return;
-            el.closest('.form-group').style.display = '';
-            // revert required to original for these fields
-            if (id === 'add_price' || id === 'add_cost_price' || id === 'add_current_stock' || id === 'add_minimum_stock') {
-                el.required = true;
-            }
-        });
-        if (addCategory) addCategory.required = true;
-        document.getElementById('add_barcode').required = false;
-        // show only food-related categories
-        filterCategories(foodCategoryNames);
-    }
-
-    function setModeSupplies() {
-        // first, make sure common required fields are set properly
-        // show product name
-        const nameField = form.querySelector('[name="product_name"]');
-        if (nameField) { nameField.closest('.form-group').style.display = ''; nameField.required = true; }
-
-        // category select must be visible and required
-        if (addCategory) { addCategory.closest('.form-group') && (addCategory.closest('.form-group').style.display = ''); addCategory.required = true; }
-
-        // show price, cost, initial stock, minimum stock
-        ['add_price','add_cost_price','add_current_stock','add_minimum_stock'].forEach(id => {
-            const el = document.getElementById(id);
-            if (!el) return;
-            const fg = el.closest('.form-group'); if (fg) fg.style.display = '';
-            el.required = true;
-        });
-
-        // hide fields not relevant to supplies: barcode, description, image (image input stays optional)
-        ['add_barcode','add_description'].forEach(id => {
-            const el = document.getElementById(id);
-            if (!el) return;
-            const fg = el.closest('.form-group'); if (fg) fg.style.display = 'none';
-            el.required = false;
-        });
-
-        // keep hidden inputs values for server compatibility
-        // restrict categories to a conservative supplies set — try to match common supplies category names
-        const suppliesCategoryNames = ['supplies','ingredients','inventory','dry goods','paper','condiments'];
-        filterCategories(suppliesCategoryNames);
-    }
-
-    if (addCoffeeBtn) addCoffeeBtn.addEventListener('click', setModeCoffee);
-    if (addFoodBtn) addFoodBtn.addEventListener('click', setModeFood);
-    const addSuppliesBtn = document.getElementById('addSuppliesBtn');
-    if (addSuppliesBtn) addSuppliesBtn.addEventListener('click', setModeSupplies);
-
-    // default: Food (full form)
-    setModeFood();
-});
-</script>
 
 <script>
 // Page-level view toggle: Coffee vs Food vs Supplies (controls the main products grid)
@@ -1217,8 +1100,30 @@ document.addEventListener('DOMContentLoaded', function(){
         }
     };
 
-    // default to Food view
-    showFoodView();
+    // default to Combined Coffee + Food view
+    window.showCombinedView = function(){
+        restoreOriginalProducts();
+        // show all rows that are either coffee or food categories
+        const allowed = ['hot coffee','iced coffee','tea','pastries','sandwiches'];
+        productsTable.querySelectorAll('tbody tr').forEach(row => {
+            const cat = (row.cells[2] && row.cells[2].innerText.trim().toLowerCase()) || '';
+            if (allowed.includes(cat)) row.style.display = '';
+            else row.style.display = 'none';
+            Array.from(row.cells).forEach(cell => cell.style.display = '');
+        });
+        // restrict categoryFilter to the allowed set
+        const catFilter2 = document.getElementById('categoryFilter');
+        if (catFilter2) {
+            Array.from(catFilter2.options).forEach(o => {
+                const txt = (o.text || '').trim().toLowerCase();
+                if (o.value === '') { o.style.display = ''; return; }
+                o.style.display = allowed.includes(txt) ? '' : 'none';
+            });
+            catFilter2.value = '';
+        }
+    };
+
+    showCombinedView();
 });
 // Supplies modal helpers: allow resetting filters and closing with Escape
 document.addEventListener('DOMContentLoaded', function(){
