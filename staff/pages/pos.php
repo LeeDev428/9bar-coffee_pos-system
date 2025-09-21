@@ -16,6 +16,9 @@ $categories = $db->fetchAll("SELECT * FROM categories ORDER BY category_name") ?
 // Handle AJAX requests
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     header('Content-Type: application/json');
+    // Capture any stray output (notices/warnings) so the client receives valid JSON
+    ob_start();
+    try {
     
     switch ($_POST['action']) {
         case 'add_to_cart':
@@ -72,37 +75,69 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         case 'process_sale':
             $paymentMethod = sanitizeInput($_POST['payment_method'] ?? 'cash');
             $receivedAmount = floatval($_POST['received_amount'] ?? 0);
-            
-            if (empty($_SESSION['cart'])) {
-                echo json_encode(['success' => false, 'message' => 'Cart is empty']);
-                exit;
+
+            // Determine cart source: prefer posted cart JSON from client (localStorage), fallback to session cart
+            $postedCartRaw = $_POST['cart'] ?? null;
+            $cartSource = [];
+
+            if ($postedCartRaw) {
+                $decoded = json_decode($postedCartRaw, true);
+                if (!is_array($decoded) || count($decoded) === 0) {
+                    echo json_encode(['success' => false, 'message' => 'Invalid cart data']);
+                    exit;
+                }
+                $cartSource = $decoded;
+            } else {
+                if (empty($_SESSION['cart'])) {
+                    echo json_encode(['success' => false, 'message' => 'Cart is empty']);
+                    exit;
+                }
+                $cartSource = $_SESSION['cart'];
             }
-            
-            // Calculate totals
+
+            // Build authoritative items list using server-side product prices
             $subtotal = 0;
             $items = [];
-            
-            foreach ($_SESSION['cart'] as $item) {
-                $itemTotal = $item['price'] * $item['quantity'];
+
+            foreach ($cartSource as $rawItem) {
+                // Support both associative arrays and numeric-keyed structures
+                $productId = intval($rawItem['product_id'] ?? $rawItem['product_id']);
+                $quantity = intval($rawItem['quantity'] ?? $rawItem['quantity']);
+                if ($quantity <= 0) continue;
+
+                $product = $productManager->getProduct($productId);
+                if (!$product) {
+                    echo json_encode(['success' => false, 'message' => "Product ID {$productId} not found"]);
+                    exit;
+                }
+
+                // Use server-side price to prevent client tampering
+                $price = floatval($product['price']);
+                $itemTotal = $price * $quantity;
                 $subtotal += $itemTotal;
-                
+
                 $items[] = [
-                    'product_id' => $item['product_id'],
-                    'product_name' => $item['product_name'],
-                    'price' => $item['price'],
-                    'quantity' => $item['quantity'],
+                    'product_id' => $productId,
+                    'product_name' => $product['product_name'],
+                    'price' => $price,
+                    'quantity' => $quantity,
                     'total_price' => $itemTotal
                 ];
             }
-            
+
+            if (empty($items)) {
+                echo json_encode(['success' => false, 'message' => 'Cart is empty or contains invalid items']);
+                exit;
+            }
+
             $tax = $subtotal * 0.12; // 12% VAT
             $total = $subtotal + $tax;
-            
+
             if ($paymentMethod === 'cash' && $receivedAmount < $total) {
                 echo json_encode(['success' => false, 'message' => 'Insufficient payment amount']);
                 exit;
             }
-            
+
             // Process the sale
             try {
                 $saleData = [
@@ -113,15 +148,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     'received_amount' => $receivedAmount,
                     'change_amount' => $paymentMethod === 'cash' ? $receivedAmount - $total : 0
                 ];
-                
+
                 $saleId = $salesManager->createSale($saleData, $items);
-                
+
                 if ($saleId) {
-                    // Clear cart
-                    $_SESSION['cart'] = [];
-                    
+                    // If session cart was used, clear it. Client is expected to clear localStorage.
+                    if (empty($postedCartRaw)) {
+                        $_SESSION['cart'] = [];
+                    }
+
                     echo json_encode([
-                        'success' => true, 
+                        'success' => true,
                         'message' => 'Sale processed successfully',
                         'sale_id' => $saleId,
                         'change' => $paymentMethod === 'cash' ? $receivedAmount - $total : 0
@@ -129,7 +166,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 } else {
                     echo json_encode(['success' => false, 'message' => 'Failed to process sale']);
                 }
-                
+
             } catch (Exception $e) {
                 echo json_encode(['success' => false, 'message' => 'Error: ' . $e->getMessage()]);
             }
@@ -140,6 +177,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             echo json_encode(['success' => true, 'message' => 'Cart cleared', 'cart' => $_SESSION['cart']]);
             exit;
     }
+    // End try block
+    } catch (Throwable $e) {
+        $buffer = ob_get_clean();
+        // Return structured JSON with debug info (buffer contains warnings or echoed text)
+        $resp = [
+            'success' => false,
+            'message' => 'Server error',
+            'error' => $e->getMessage(),
+        ];
+        if (!empty($buffer)) $resp['output'] = $buffer;
+        echo json_encode($resp);
+        exit;
+    }
+    // If we reach here, flush any buffer leftover (we expect cases to have echoed and exited)
+    if (ob_get_length() > 0) ob_end_clean();
 }
 
 // Initialize cart if not exists
@@ -350,7 +402,27 @@ if (!isset($_SESSION['cart'])) {
 <!-- POS JavaScript -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    let cart = <?php echo json_encode($_SESSION['cart'] ?? []); ?>;
+    // Use localStorage for temporary cart storage on the client
+    let cart = {};
+    const LOCAL_CART_KEY = 'pos_cart';
+
+    function loadCartFromStorage() {
+        try {
+            const raw = localStorage.getItem(LOCAL_CART_KEY);
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                if (parsed && typeof parsed === 'object') return parsed;
+            }
+        } catch (e) { console.warn('Failed to load cart from storage', e); }
+        return {};
+    }
+
+    function saveCartToStorage() {
+        try { localStorage.setItem(LOCAL_CART_KEY, JSON.stringify(cart)); } catch (e) { console.warn('Failed to save cart', e); }
+    }
+
+    // Initialize cart from localStorage
+    cart = loadCartFromStorage();
     
     // DOM Elements
     const cartItemsContainer = document.getElementById('cartItems');
@@ -377,51 +449,46 @@ document.addEventListener('DOMContentLoaded', function() {
         addToCart(productId, productName, price, 1);
     });
     
-    // Add to cart function
+    // Add to cart function (localStorage-first temporary cart)
     function addToCart(productId, productName, price, quantity) {
-        const body = `action=add_to_cart&product_id=${encodeURIComponent(productId)}&quantity=${encodeURIComponent(quantity)}`;
-        postForm(body)
-        .then(data => {
-            if (data && data.success) {
-                if (data.cart) cart = data.cart;
-                updateCartDisplay();
-                showNotification(data.message || 'Item added', 'success');
-            } else {
-                showNotification((data && data.message) || 'Failed to add item', 'error');
-            }
-        })
-        .catch(err => {
-            console.error('Add to cart error:', err);
-            const msg = err && err.text ? `Server response: ${err.text.slice(0,200)}` : 'Network error while adding item';
-            showNotification(msg, 'error');
-        });
+        productId = String(productId);
+        quantity = parseInt(quantity) || 1;
+        price = parseFloat(price) || 0;
+
+        if (!cart[productId]) {
+            cart[productId] = { product_id: productId, product_name: productName, price: price, quantity: 0 };
+        }
+        cart[productId].quantity += quantity;
+        saveCartToStorage();
+        updateCartDisplay();
+        showNotification('Item added to temporary cart', 'success');
     }
 
     // POST helper that returns parsed JSON or throws an object with .text for debugging
     function postForm(body) {
         const postUrl = window.location.pathname + window.location.search;
-        console.log('Posting to', postUrl, 'cookies:', document.cookie);
+        // Return a promise that resolves to a structured result object.
         return fetch(postUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             credentials: 'same-origin',
             body
         })
-        .then(response => {
-            // Try to read text first so we can show it on parse error
-            return response.text().then(text => {
-                if (!response.ok) {
-                    // include status and text
-                    throw { status: response.status, text };
-                }
-                try {
-                    const data = JSON.parse(text || '{}');
-                    return data;
-                } catch (e) {
-                    // return object that includes raw text for debugging
-                    throw { parseError: true, text };
-                }
-            });
+        .then(response => response.text().then(text => {
+            if (!response.ok) {
+                // HTTP error but include raw text for debugging
+                return { httpError: true, status: response.status, text };
+            }
+            try {
+                const data = JSON.parse(text || '{}');
+                return { httpError: false, parseError: false, data };
+            } catch (e) {
+                // Return parseError with raw text instead of throwing
+                return { httpError: false, parseError: true, text };
+            }
+        })).catch(err => {
+            // Network or fetch-level error
+            return { fetchError: true, error: err };
         });
     }
     
@@ -482,44 +549,23 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Remove from cart
+    // Remove from cart (localStorage)
     function removeFromCart(productId) {
-        const body = `action=remove_from_cart&product_id=${encodeURIComponent(productId)}`;
-        postForm(body)
-        .then(data => {
-            if (data && data.success) {
-                if (data.cart) cart = data.cart; else delete cart[productId];
-                updateCartDisplay();
-                showNotification(data.message || 'Item removed', 'success');
-            } else {
-                showNotification((data && data.message) || 'Failed to remove item', 'error');
-            }
-        })
-        .catch(err => {
-            console.error('Remove from cart error:', err);
-            const msg = err && err.text ? `Server response: ${err.text.slice(0,200)}` : 'Network error while removing item';
-            showNotification(msg, 'error');
-        });
+        if (cart[productId]) {
+            delete cart[productId];
+            saveCartToStorage();
+            updateCartDisplay();
+            showNotification('Item removed from temporary cart', 'success');
+        }
     }
     
-    // Clear cart
+    // Clear cart (localStorage)
     clearCartBtn.addEventListener('click', function() {
         if (confirm('Are you sure you want to clear the cart?')) {
-            postForm('action=clear_cart')
-            .then(data => {
-                if (data && data.success) {
-                    cart = data.cart || {};
-                    updateCartDisplay();
-                    showNotification(data.message || 'Cart cleared', 'success');
-                } else {
-                    showNotification((data && data.message) || 'Failed to clear cart', 'error');
-                }
-            })
-            .catch(err => {
-                console.error('Clear cart error:', err);
-                const msg = err && err.text ? `Server response: ${err.text.slice(0,200)}` : 'Network error while clearing cart';
-                showNotification(msg, 'error');
-            });
+            cart = {};
+            saveCartToStorage();
+            updateCartDisplay();
+            showNotification('Temporary cart cleared', 'success');
         }
     });
     
@@ -570,27 +616,37 @@ document.addEventListener('DOMContentLoaded', function() {
         const paymentMethod = paymentMethodSelect.value;
         const receivedAmount = parseFloat(receivedAmountInput.value) || 0;
 
+        if (Object.keys(cart).length === 0) {
+            showNotification('Cart is empty', 'error');
+            return;
+        }
+
         this.disabled = true;
         this.innerHTML = '<i class="spinner-border spinner-border-sm me-1"></i> Processing...';
 
-        const body = `action=process_sale&payment_method=${encodeURIComponent(paymentMethod)}&received_amount=${encodeURIComponent(receivedAmount)}`;
+        // Send the client-side cart to server for processing
+        const body = `action=process_sale&payment_method=${encodeURIComponent(paymentMethod)}&received_amount=${encodeURIComponent(receivedAmount)}&cart=${encodeURIComponent(JSON.stringify(cart))}`;
         postForm(body)
-        .then(data => {
+        .then(res => {
+            if (res.fetchError) throw new Error('Network error while processing sale');
+            if (res.httpError) throw new Error('Server error: ' + (res.text || res.status));
+            if (res.parseError) throw new Error('Server returned unexpected response');
+            const data = res.data || {};
             if (data && data.success) {
                 cart = {};
+                saveCartToStorage();
                 updateCartDisplay();
                 receivedAmountInput.value = '';
                 changeAmountDiv.style.display = 'none';
                 showNotification('Sale completed successfully!', 'success');
-                if (data.change > 0) alert(`Change: ₱${data.change.toFixed(2)}`);
+                if (data.change && data.change > 0) alert(`Change: ₱${data.change.toFixed(2)}`);
             } else {
                 showNotification((data && data.message) || 'Failed to process sale', 'error');
             }
         })
         .catch(err => {
             console.error('Process sale error:', err);
-            const msg = err && err.text ? `Server response: ${err.text.slice(0,200)}` : 'Network error while processing sale';
-            showNotification(msg, 'error');
+            showNotification(err.message || 'Network error while processing sale', 'error');
         })
         .finally(() => {
             this.disabled = false;
