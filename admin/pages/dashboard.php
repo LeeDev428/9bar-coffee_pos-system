@@ -109,13 +109,13 @@ const salesChart = new Chart(salesCtx, {
             label: 'Quantity Sold',
             data: <?php echo json_encode($chartData); ?>,
             backgroundColor: [
-                '#20B2AA', /* teal */
-                '#FF8C00', /* orange */
-                '#6A5ACD', /* purple */
-                '#FFD700', /* gold */
-                '#5DADE2'  /* sky blue */
+                '#1f77b4', /* blue */
+                '#ff7f0e', /* orange */
+                '#2ca02c', /* green */
+                '#d62728', /* red */
+                '#9467bd'  /* purple */
             ],
-            borderColor: ['#1F8F85','#CC7000','#593FB8','#B68900','#4B9FD6'],
+            borderColor: ['#155a8a','#c45a00','#1f8f1f','#a11b1b','#6b47a0'],
             borderWidth: 1
         }]
     },
@@ -156,10 +156,10 @@ const categoryChart = new Chart(categoryCtx, {
         datasets: [{
             data: [35, 25, 25, 15],
             backgroundColor: [
-                '#20B2AA', /* Iced Coffee - teal */
-                '#FF8C00', /* Hot Coffee - orange */
-                '#6A5ACD', /* Fruit Tea - purple */
-                '#58D68D'  /* Milktea - light green */
+                '#4e79a7', /* blue */
+                '#f28e2b', /* orange */
+                '#e15759', /* red */
+                '#76b7b2'  /* teal */
             ],
             borderWidth: 2,
             borderColor: '#ffffff'
@@ -289,12 +289,12 @@ document.addEventListener('DOMContentLoaded', function() {
             datasets: [{
                 label: 'Daily Sales (₱)',
                 data: <?php echo json_encode($amounts); ?>,
-                borderColor: '#8B4513',
-                backgroundColor: 'rgba(139, 69, 19, 0.08)',
+                borderColor: '#1f77b4',
+                backgroundColor: 'rgba(31, 119, 180, 0.08)',
                 tension: 0.15,
                 borderWidth: 3,
                 pointRadius: 4,
-                pointBackgroundColor: '#8B4513'
+                pointBackgroundColor: '#1f77b4'
             }]
         },
         options: {
@@ -339,11 +339,11 @@ document.addEventListener('DOMContentLoaded', function() {
             datasets: [{
                 data: <?php echo json_encode($productSales); ?>,
                 backgroundColor: [
-                    '#8B4513',
-                    '#D2B48C',
-                    '#F5E6D3',
-                    '#5D2F0A',
-                    '#A0522D'
+                    '#e15759', /* red */
+                    '#76b7b2', /* teal */
+                    '#59a14f', /* green */
+                    '#edc949', /* yellow */
+                    '#af7aa1'  /* purple */
                 ]
             }]
         },
