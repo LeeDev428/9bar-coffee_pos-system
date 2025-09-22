@@ -14,173 +14,187 @@ $products = $productManager->getAllProducts();
 $categories = $db->fetchAll("SELECT * FROM categories ORDER BY category_name") ?? [];
 
 // Handle AJAX requests
+// Handle AJAX requests
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     header('Content-Type: application/json');
     // Capture any stray output (notices/warnings) so the client receives valid JSON
     ob_start();
+
+    // Helper to send JSON while including any buffered output (so notices/warnings don't break JSON)
+    $send_json = function($data) {
+        $buffer = '';
+        if (ob_get_length() !== false) {
+            $buffer = ob_get_clean();
+        }
+        if (!empty($buffer)) $data['output'] = $buffer;
+        echo json_encode($data);
+        exit;
+    };
+
     try {
-    
-    switch ($_POST['action']) {
-        case 'add_to_cart':
-            $productId = intval($_POST['product_id']);
-            $quantity = intval($_POST['quantity'] ?? 1);
-            
-            // Get product details
-            $product = $productManager->getProduct($productId);
-            if ($product) {
-                if (!isset($_SESSION['cart'])) {
-                    $_SESSION['cart'] = [];
-                }
-                
-                if (isset($_SESSION['cart'][$productId])) {
-                    $_SESSION['cart'][$productId]['quantity'] += $quantity;
-                } else {
-                    $_SESSION['cart'][$productId] = [
-                        'product_id' => $productId,
-                        'product_name' => $product['product_name'],
-                        'price' => $product['price'],
-                        'quantity' => $quantity
-                    ];
-                }
-                
-                echo json_encode(['success' => true, 'message' => 'Item added to cart', 'cart' => $_SESSION['cart']]);
-            } else {
-                echo json_encode(['success' => false, 'message' => 'Product not found']);
-            }
-            exit;
-            
-        case 'remove_from_cart':
-            $productId = intval($_POST['product_id']);
-            if (isset($_SESSION['cart'][$productId])) {
-                unset($_SESSION['cart'][$productId]);
-                echo json_encode(['success' => true, 'message' => 'Item removed from cart', 'cart' => $_SESSION['cart']]);
-            } else {
-                echo json_encode(['success' => false, 'message' => 'Item not found in cart']);
-            }
-            exit;
-            
-        case 'update_cart':
-            $productId = intval($_POST['product_id']);
-            $quantity = intval($_POST['quantity']);
-            
-            if ($quantity <= 0) {
-                unset($_SESSION['cart'][$productId]);
-            } else {
-                $_SESSION['cart'][$productId]['quantity'] = $quantity;
-            }
-            
-            echo json_encode(['success' => true, 'message' => 'Cart updated', 'cart' => $_SESSION['cart']]);
-            exit;
-            
-        case 'process_sale':
-            $paymentMethod = sanitizeInput($_POST['payment_method'] ?? 'cash');
-            $receivedAmount = floatval($_POST['received_amount'] ?? 0);
-
-            // Determine cart source: prefer posted cart JSON from client (localStorage), fallback to session cart
-            $postedCartRaw = $_POST['cart'] ?? null;
-            $cartSource = [];
-
-            if ($postedCartRaw) {
-                $decoded = json_decode($postedCartRaw, true);
-                if (!is_array($decoded) || count($decoded) === 0) {
-                    echo json_encode(['success' => false, 'message' => 'Invalid cart data']);
-                    exit;
-                }
-                $cartSource = $decoded;
-            } else {
-                if (empty($_SESSION['cart'])) {
-                    echo json_encode(['success' => false, 'message' => 'Cart is empty']);
-                    exit;
-                }
-                $cartSource = $_SESSION['cart'];
-            }
-
-            // Build authoritative items list using server-side product prices
-            $subtotal = 0;
-            $items = [];
-
-            foreach ($cartSource as $rawItem) {
-                // Support both associative arrays and numeric-keyed structures
-                $productId = intval($rawItem['product_id'] ?? $rawItem['product_id']);
-                $quantity = intval($rawItem['quantity'] ?? $rawItem['quantity']);
-                if ($quantity <= 0) continue;
+        switch ($_POST['action']) {
+            case 'add_to_cart':
+                $productId = intval($_POST['product_id']);
+                $quantity = intval($_POST['quantity'] ?? 1);
 
                 $product = $productManager->getProduct($productId);
-                if (!$product) {
-                    echo json_encode(['success' => false, 'message' => "Product ID {$productId} not found"]);
-                    exit;
-                }
+                if ($product) {
+                    if (!isset($_SESSION['cart'])) $_SESSION['cart'] = [];
 
-                // Use server-side price to prevent client tampering
-                $price = floatval($product['price']);
-                $itemTotal = $price * $quantity;
-                $subtotal += $itemTotal;
-
-                $items[] = [
-                    'product_id' => $productId,
-                    'product_name' => $product['product_name'],
-                    'price' => $price,
-                    'quantity' => $quantity,
-                    'total_price' => $itemTotal
-                ];
-            }
-
-            if (empty($items)) {
-                echo json_encode(['success' => false, 'message' => 'Cart is empty or contains invalid items']);
-                exit;
-            }
-
-            $tax = $subtotal * 0.12; // 12% VAT
-            $total = $subtotal + $tax;
-
-            if ($paymentMethod === 'cash' && $receivedAmount < $total) {
-                echo json_encode(['success' => false, 'message' => 'Insufficient payment amount']);
-                exit;
-            }
-
-            // Process the sale
-            try {
-                $saleData = [
-                    'user_id' => $currentUser['user_id'],
-                    'customer_name' => 'Walk-in Customer',
-                    'total_amount' => $total,
-                    'payment_method' => $paymentMethod,
-                    'received_amount' => $receivedAmount,
-                    'change_amount' => $paymentMethod === 'cash' ? $receivedAmount - $total : 0
-                ];
-
-                $saleId = $salesManager->createSale($saleData, $items);
-
-                if ($saleId) {
-                    // If session cart was used, clear it. Client is expected to clear localStorage.
-                    if (empty($postedCartRaw)) {
-                        $_SESSION['cart'] = [];
+                    if (isset($_SESSION['cart'][$productId])) {
+                        $_SESSION['cart'][$productId]['quantity'] += $quantity;
+                    } else {
+                        $_SESSION['cart'][$productId] = [
+                            'product_id' => $productId,
+                            'product_name' => $product['product_name'],
+                            'price' => $product['price'],
+                            'quantity' => $quantity
+                        ];
                     }
 
-                    echo json_encode([
-                        'success' => true,
-                        'message' => 'Sale processed successfully',
-                        'sale_id' => $saleId,
-                        'change' => $paymentMethod === 'cash' ? $receivedAmount - $total : 0
-                    ]);
+                    $send_json(['success' => true, 'message' => 'Item added to cart', 'cart' => $_SESSION['cart']]);
                 } else {
-                    echo json_encode(['success' => false, 'message' => 'Failed to process sale']);
+                    $send_json(['success' => false, 'message' => 'Product not found']);
+                }
+                break;
+
+            case 'remove_from_cart':
+                $productId = intval($_POST['product_id']);
+                if (isset($_SESSION['cart'][$productId])) {
+                    unset($_SESSION['cart'][$productId]);
+                    $send_json(['success' => true, 'message' => 'Item removed from cart', 'cart' => $_SESSION['cart']]);
+                } else {
+                    $send_json(['success' => false, 'message' => 'Item not found in cart']);
+                }
+                break;
+
+            case 'update_cart':
+                $productId = intval($_POST['product_id']);
+                $quantity = intval($_POST['quantity']);
+
+                if ($quantity <= 0) {
+                    unset($_SESSION['cart'][$productId]);
+                } else {
+                    $_SESSION['cart'][$productId]['quantity'] = $quantity;
                 }
 
-            } catch (Exception $e) {
-                echo json_encode(['success' => false, 'message' => 'Error: ' . $e->getMessage()]);
-            }
-            exit;
-            
-        case 'clear_cart':
-            $_SESSION['cart'] = [];
-            echo json_encode(['success' => true, 'message' => 'Cart cleared', 'cart' => $_SESSION['cart']]);
-            exit;
-    }
-    // End try block
+                $send_json(['success' => true, 'message' => 'Cart updated', 'cart' => $_SESSION['cart']]);
+                break;
+
+            case 'process_sale':
+                $paymentMethod = sanitizeInput($_POST['payment_method'] ?? 'cash');
+                $receivedAmount = floatval($_POST['received_amount'] ?? 0);
+
+                // Determine cart source: prefer posted cart JSON from client (localStorage), fallback to session cart
+                $postedCartRaw = $_POST['cart'] ?? null;
+                $cartSource = [];
+
+                if ($postedCartRaw) {
+                    $decoded = json_decode($postedCartRaw, true);
+                    if (!is_array($decoded) || count($decoded) === 0) {
+                        $send_json(['success' => false, 'message' => 'Invalid cart data']);
+                    }
+                    $cartSource = $decoded;
+                } else {
+                    if (empty($_SESSION['cart'])) {
+                        $send_json(['success' => false, 'message' => 'Cart is empty']);
+                    }
+                    $cartSource = $_SESSION['cart'];
+                }
+
+                // Build authoritative items list using server-side product prices
+                $subtotal = 0;
+                $items = [];
+
+                foreach ($cartSource as $rawItem) {
+                    $productId = intval($rawItem['product_id'] ?? $rawItem['product_id']);
+                    $quantity = intval($rawItem['quantity'] ?? $rawItem['quantity']);
+                    if ($quantity <= 0) continue;
+
+                    $product = $productManager->getProduct($productId);
+                    if (!$product) {
+                        $send_json(['success' => false, 'message' => "Product ID {$productId} not found"]);
+                    }
+
+                    $price = floatval($product['price']);
+                    $itemTotal = $price * $quantity;
+                    $subtotal += $itemTotal;
+
+                    $items[] = [
+                        'product_id' => $productId,
+                        'product_name' => $product['product_name'],
+                        'price' => $price,
+                        'quantity' => $quantity,
+                        'total_price' => $itemTotal
+                    ];
+                }
+
+                if (empty($items)) {
+                    $send_json(['success' => false, 'message' => 'Cart is empty or contains invalid items']);
+                }
+
+                $tax = $subtotal * 0.12; // 12% VAT
+                $total = $subtotal + $tax;
+
+                if ($paymentMethod === 'cash' && $receivedAmount < $total) {
+                    $send_json(['success' => false, 'message' => 'Insufficient payment amount']);
+                }
+
+                // Process the sale
+                try {
+                    // Build sale data expected by SalesManager
+                    $saleData = [
+                        'transaction_number' => SalesManager::generateTransactionNumber(),
+                        'user_id' => $currentUser['user_id'],
+                        'customer_name' => 'Walk-in Customer',
+                        'total_amount' => $total,
+                        'tax_amount' => $tax,
+                        'discount_amount' => 0,
+                        'payment_method' => $paymentMethod
+                    ];
+
+                    // Normalize items shape to what SalesManager expects (unit_price, total_price)
+                    $saleItemsForManager = [];
+                    foreach ($items as $it) {
+                        $saleItemsForManager[] = [
+                            'product_id' => $it['product_id'],
+                            'quantity' => $it['quantity'],
+                            'unit_price' => $it['price'] ?? $it['unit_price'] ?? 0,
+                            'total_price' => $it['total_price'] ?? ($it['price'] * $it['quantity']),
+                            'discount_per_item' => $it['discount_per_item'] ?? 0
+                        ];
+                    }
+
+                    $saleId = $salesManager->createSale($saleData, $saleItemsForManager);
+
+                    if ($saleId) {
+                        // If session cart was used, clear it. Client is expected to clear localStorage.
+                        if (empty($postedCartRaw)) {
+                            $_SESSION['cart'] = [];
+                        }
+
+                        $send_json([
+                            'success' => true,
+                            'message' => 'Sale processed successfully',
+                            'sale_id' => $saleId,
+                            'change' => $paymentMethod === 'cash' ? $receivedAmount - $total : 0
+                        ]);
+                    } else {
+                        $send_json(['success' => false, 'message' => 'Failed to process sale']);
+                    }
+
+                } catch (Exception $e) {
+                    $send_json(['success' => false, 'message' => 'Error: ' . $e->getMessage()]);
+                }
+                break;
+
+            case 'clear_cart':
+                $_SESSION['cart'] = [];
+                $send_json(['success' => true, 'message' => 'Cart cleared', 'cart' => $_SESSION['cart']]);
+                break;
+        }
     } catch (Throwable $e) {
         $buffer = ob_get_clean();
-        // Return structured JSON with debug info (buffer contains warnings or echoed text)
         $resp = [
             'success' => false,
             'message' => 'Server error',
@@ -190,10 +204,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         echo json_encode($resp);
         exit;
     }
-    // If we reach here, flush any buffer leftover (we expect cases to have echoed and exited)
+
+    // If we reach here, flush any buffer leftover
     if (ob_get_length() > 0) ob_end_clean();
 }
-
 // Initialize cart if not exists
 if (!isset($_SESSION['cart'])) {
     $_SESSION['cart'] = [];
