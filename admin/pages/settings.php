@@ -1,7 +1,7 @@
 <?php
 // Admin Settings Page
 $page_title = 'SYSTEM SETTINGS';
-include '../components/main-layout.php';
+include '../components/layout-start.php';
 
 // Handle form submissions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
