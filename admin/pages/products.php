@@ -1,7 +1,7 @@
 <?php
 // Admin Products Management Page
 $page_title = 'MANAGE PRODUCTS';
-include '../components/main-layout.php';
+include '../components/layout-start.php';
 
 // Initialize managers
 $productManager = new ProductManager($db);
@@ -12,16 +12,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         switch ($_POST['action']) {
             case 'add_product':
                 try {
-                    // Accept empty price/cost_price (store NULL) for products like Coffee where price is set per-cup later
-                    $price = (isset($_POST['price']) && trim($_POST['price']) !== '') ? floatval($_POST['price']) : null;
-                    $costPrice = (isset($_POST['cost_price']) && trim($_POST['cost_price']) !== '') ? floatval($_POST['cost_price']) : null;
-
                     $data = [
                         'product_name' => sanitizeInput($_POST['product_name']),
                         'category_id' => intval($_POST['category_id']),
                         'description' => sanitizeInput($_POST['description']),
-                        'price' => $price,
-                        'cost_price' => $costPrice,
+                        'price' => floatval($_POST['price']),
+                        'cost_price' => floatval($_POST['cost_price']),
                         'barcode' => sanitizeInput($_POST['barcode']),
                         'current_stock' => intval($_POST['current_stock']),
                         'minimum_stock' => intval($_POST['minimum_stock']),
@@ -29,58 +25,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'reorder_level' => intval($_POST['reorder_level'])
                     ];
                     
-                    // Handle uploaded image if any
-                    if (isset($_FILES['product_image'])) {
-                        $fileErr = $_FILES['product_image']['error'];
-                        if ($fileErr !== UPLOAD_ERR_NO_FILE) {
-                            if ($fileErr !== UPLOAD_ERR_OK) {
-                                // Map common upload errors to readable messages
-                                $errMsg = 'Image upload error (code ' . $fileErr . ')';
-                                switch ($fileErr) {
-                                    case UPLOAD_ERR_INI_SIZE:
-                                    case UPLOAD_ERR_FORM_SIZE:
-                                        $errMsg = 'Uploaded image exceeds the maximum allowed size.';
-                                        break;
-                                    case UPLOAD_ERR_PARTIAL:
-                                        $errMsg = 'Image was only partially uploaded.';
-                                        break;
-                                    case UPLOAD_ERR_NO_TMP_DIR:
-                                        $errMsg = 'Missing temporary folder on server.';
-                                        break;
-                                    case UPLOAD_ERR_CANT_WRITE:
-                                        $errMsg = 'Failed to write uploaded file to disk.';
-                                        break;
-                                }
-                                showAlert('Product image upload failed: ' . $errMsg, 'error');
-                            } else {
-                                $uploadDir = __DIR__ . '/../../assets/img/products/';
-                                if (!is_dir($uploadDir)) {
-                                    if (!mkdir($uploadDir, 0755, true)) {
-                                        showAlert('Failed to create upload directory for product images.', 'error');
-                                    }
-                                }
-
-                                $tmpName = $_FILES['product_image']['tmp_name'];
-                                $origName = basename($_FILES['product_image']['name']);
-                                $ext = pathinfo($origName, PATHINFO_EXTENSION);
-                                $allowed = ['jpg','jpeg','png','gif'];
-                                if (in_array(strtolower($ext), $allowed)) {
-                                    $safeName = preg_replace('/[^a-zA-Z0-9-_\.]/','', pathinfo($origName, PATHINFO_FILENAME));
-                                    $newName = $safeName . '-' . time() . '.' . $ext;
-                                    $destPath = $uploadDir . $newName;
-                                    if (is_uploaded_file($tmpName) && move_uploaded_file($tmpName, $destPath)) {
-                                        // store relative path for DB
-                                        $data['image_path'] = 'assets/img/products/' . $newName;
-                                    } else {
-                                        showAlert('Failed to move uploaded image to destination folder.', 'error');
-                                    }
-                                } else {
-                                    showAlert('Unsupported image type. Allowed: jpg, jpeg, png, gif.', 'error');
-                                }
-                            }
-                        }
-                    }
-
                     $productId = $productManager->addProduct($data);
                     showAlert('Product added successfully!', 'success');
                 } catch (Exception $e) {
@@ -91,72 +35,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             case 'edit_product':
                 try {
                     $productId = intval($_POST['product_id']);
-                    // For edits, accept empty price/cost_price as NULL
-                    $editPrice = (isset($_POST['price']) && trim($_POST['price']) !== '') ? floatval($_POST['price']) : null;
-                    $editCost = (isset($_POST['cost_price']) && trim($_POST['cost_price']) !== '') ? floatval($_POST['cost_price']) : null;
-
                     $data = [
                         'product_name' => sanitizeInput($_POST['product_name']),
                         'category_id' => intval($_POST['category_id']),
                         'description' => sanitizeInput($_POST['description']),
-                        'price' => $editPrice,
-                        'cost_price' => $editCost,
+                        'price' => floatval($_POST['price']),
+                        'cost_price' => floatval($_POST['cost_price']),
                         'barcode' => sanitizeInput($_POST['barcode'])
                     ];
                     
                     $productManager->updateProduct($productId, $data);
-
-                    // Handle image upload for edit (similar reporting as add)
-                    if (isset($_FILES['product_image'])) {
-                        $fileErr = $_FILES['product_image']['error'];
-                        if ($fileErr !== UPLOAD_ERR_NO_FILE) {
-                            if ($fileErr !== UPLOAD_ERR_OK) {
-                                $errMsg = 'Image upload error (code ' . $fileErr . ')';
-                                switch ($fileErr) {
-                                    case UPLOAD_ERR_INI_SIZE:
-                                    case UPLOAD_ERR_FORM_SIZE:
-                                        $errMsg = 'Uploaded image exceeds the maximum allowed size.';
-                                        break;
-                                    case UPLOAD_ERR_PARTIAL:
-                                        $errMsg = 'Image was only partially uploaded.';
-                                        break;
-                                    case UPLOAD_ERR_NO_TMP_DIR:
-                                        $errMsg = 'Missing temporary folder on server.';
-                                        break;
-                                    case UPLOAD_ERR_CANT_WRITE:
-                                        $errMsg = 'Failed to write uploaded file to disk.';
-                                        break;
-                                }
-                                showAlert('Product image upload failed: ' . $errMsg, 'error');
-                            } else {
-                                $uploadDir = __DIR__ . '/../../assets/img/products/';
-                                if (!is_dir($uploadDir)) {
-                                    if (!mkdir($uploadDir, 0755, true)) {
-                                        showAlert('Failed to create upload directory for product images.', 'error');
-                                    }
-                                }
-
-                                $tmpName = $_FILES['product_image']['tmp_name'];
-                                $origName = basename($_FILES['product_image']['name']);
-                                $ext = pathinfo($origName, PATHINFO_EXTENSION);
-                                $allowed = ['jpg','jpeg','png','gif'];
-                                if (in_array(strtolower($ext), $allowed)) {
-                                    $safeName = preg_replace('/[^a-zA-Z0-9-_\.]/','', pathinfo($origName, PATHINFO_FILENAME));
-                                    $newName = $safeName . '-' . time() . '.' . $ext;
-                                    $destPath = $uploadDir . $newName;
-                                    if (is_uploaded_file($tmpName) && move_uploaded_file($tmpName, $destPath)) {
-                                        $data['image_path'] = 'assets/img/products/' . $newName;
-                                        // update product with image
-                                        $productManager->updateProduct($productId, $data);
-                                    } else {
-                                        showAlert('Failed to move uploaded image to destination folder.', 'error');
-                                    }
-                                } else {
-                                    showAlert('Unsupported image type. Allowed: jpg, jpeg, png, gif.', 'error');
-                                }
-                            }
-                        }
-                    }
                     
                     // Update inventory if provided
                     if (isset($_POST['current_stock'])) {
@@ -235,11 +123,6 @@ $categories = $db->fetchAll("SELECT * FROM categories ORDER BY category_name");
     color: white;
 }
 
-/* Ensure action button text is visible */
-.btn-warning, .btn-danger, .btn-success {
-    color: white !important;
-}
-
 .btn-primary:hover {
     background: #2980b9;
 }
@@ -274,27 +157,6 @@ $categories = $db->fetchAll("SELECT * FROM categories ORDER BY category_name");
 .btn-sm {
     padding: 5px 10px;
     font-size: 12px;
-}
-
-/* Coffee themed button */
-.btn-coffee {
-    background: #6f4e37; /* coffee brown */
-    color: #ffffff;
-    border: none;
-}
-.btn-coffee:hover {
-    background: #573826; /* darker on hover */
-}
-
-.btn-outline {
-    background: transparent;
-    border: 1px solid #bdc3c7;
-    color: #34495e;
-}
-.btn-outline.active {
-    background: #34495e;
-    color: #fff;
-    border-color: #34495e;
 }
 
 .products-table {
@@ -455,28 +317,10 @@ tbody tr:hover {
         <h2 style="margin: 0; color: #2c3e50;">Products Management</h2>
         <p style="color: #7f8c8d; margin: 5px 0 0 0;">Manage your product catalog and inventory</p>
     </div>
-    <div style="display:flex; gap:10px; align-items:center;">
-        <div style="display:flex; gap:8px; align-items:center;">
-            <button class="btn btn-primary" onclick="openAddModal()">
-                <i class="fas fa-plus"></i> Add New Product
-            </button>
-            <!-- View buttons removed: main grid will default to combined Coffee + Food view -->
-        </div>
-    </div>
+    <button class="btn btn-primary" onclick="openAddModal()">
+        <i class="fas fa-plus"></i> Add New Product
+    </button>
 </div>
-
-<?php
-// Try to fetch supplies (table may not exist yet). We'll catch errors and default to empty.
-$supplies = [];
-try {
-    $supplies = $db->fetchAll("SELECT * FROM supplies ORDER BY date_added DESC LIMIT 500");
-} catch (Exception $e) {
-    // table likely doesn't exist or query failed — keep $supplies empty
-}
-// Do NOT fall back to products — supplies should represent supplies only.
-?>
-
-
 
 <!-- Search and Filters -->
 <div class="search-filters">
@@ -509,57 +353,12 @@ try {
     </div>
 </div>
 
-<!-- View Supplies Modal -->
-<div id="viewSuppliesModal" class="modal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h3>Supplies</h3>
-            <span class="close" onclick="closeModal('viewSuppliesModal')">&times;</span>
-        </div>
-        <div class="modal-body">
-            <div class="table-responsive">
-                <table class="products-table" style="width:100%;">
-                    <thead>
-                        <tr>
-                            <th>Name</th>
-                            <th>Size</th>
-                            <th>Price</th>
-                            <th>Quantity</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php if (!empty($supplies)): ?>
-                            <?php foreach ($supplies as $s): ?>
-                                <tr>
-                                    <td><?php echo htmlspecialchars($s['product_name'] ?? $s['item_name'] ?? ''); ?></td>
-                                    <td><?php echo htmlspecialchars($s['size'] ?? $s['variant'] ?? ''); ?></td>
-                                    <td><?php echo isset($s['price']) ? '₱' . number_format($s['price'],2) : (isset($s['cost']) ? '₱' . number_format($s['cost'],2) : ''); ?></td>
-                                    <td><?php echo htmlspecialchars($s['quantity'] ?? $s['stock'] ?? $s['current_stock'] ?? ''); ?></td>
-                                    <td>
-                                        <button class="btn btn-sm btn-warning">Edit</button>
-                                        <button class="btn btn-sm btn-danger">Delete</button>
-                                    </td>
-                                </tr>
-                            <?php endforeach; ?>
-                        <?php else: ?>
-                            <tr><td colspan="5" style="text-align:center;color:#666;padding:20px;">No supplies found.</td></tr>
-                        <?php endif; ?>
-                    </tbody>
-                </table>
-            </div>
-            <div style="text-align:right; margin-top:12px;"><button class="btn" onclick="closeModal('viewSuppliesModal')">Close</button></div>
-        </div>
-    </div>
-</div>
-
 <!-- Products Table -->
 <div class="products-table">
     <div class="table-responsive">
         <table id="productsTable">
             <thead>
                 <tr>
-                    <th>Image</th>
                     <th>Product Name</th>
                     <th>Category</th>
                     <th>Barcode</th>
@@ -588,13 +387,6 @@ try {
                     data-stock="<?php echo $stockStatus; ?>"
                     data-name="<?php echo strtolower($product['product_name']); ?>">
                     <td>
-                        <?php if (!empty($product['image_path'])): ?>
-                        <img src="<?php echo htmlspecialchars('../../' . $product['image_path']); ?>" alt="" style="width:50px;height:50px;object-fit:cover;border-radius:4px;">
-                        <?php else: ?>
-                        <div style="width:50px;height:50px;background:#f0f0f0;border-radius:4px;display:inline-block;"></div>
-                        <?php endif; ?>
-                    </td>
-                    <td>
                         <strong><?php echo htmlspecialchars($product['product_name']); ?></strong>
                         <br><small style="color: #7f8c8d;"><?php echo htmlspecialchars($product['description']); ?></small>
                     </td>
@@ -613,10 +405,10 @@ try {
                     </td>
                     <td>
                         <button class="btn btn-warning btn-sm" onclick="openEditModal(<?php echo htmlspecialchars(json_encode($product)); ?>)">
-                            <i class="fas fa-edit"></i> Edit
+                            <i class="fas fa-edit"></i>
                         </button>
                         <button class="btn btn-danger btn-sm" onclick="deleteProduct(<?php echo $product['product_id']; ?>, '<?php echo htmlspecialchars($product['product_name']); ?>')">
-                            <i class="fas fa-trash"></i> Delete
+                            <i class="fas fa-trash"></i>
                         </button>
                     </td>
                 </tr>
@@ -634,20 +426,18 @@ try {
             <span class="close" onclick="closeModal('addModal')">&times;</span>
         </div>
         <div class="modal-body">
-            <form method="POST" enctype="multipart/form-data" id="addProductForm">
+            <form method="POST">
                 <input type="hidden" name="action" value="add_product">
-                <!-- Default modal fields shown for both Coffee and Food (mode buttons removed) -->
-                
                 
                 <div class="form-group">
                     <label class="form-label">Product Name *</label>
                     <input type="text" name="product_name" class="form-control" required>
                 </div>
-
+                
                 <div class="form-row">
                     <div class="form-group">
                         <label class="form-label">Category *</label>
-                        <select name="category_id" id="add_category" class="form-control" required>
+                        <select name="category_id" class="form-control" required>
                             <option value="">Select Category</option>
                             <?php foreach ($categories as $category): ?>
                             <option value="<?php echo $category['category_id']; ?>">
@@ -658,44 +448,46 @@ try {
                     </div>
                     <div class="form-group">
                         <label class="form-label">Barcode</label>
-                        <input type="text" name="barcode" class="form-control" id="add_barcode">
+                        <input type="text" name="barcode" class="form-control">
                     </div>
                 </div>
                 
                 <div class="form-group">
                     <label class="form-label">Description</label>
-                    <textarea name="description" class="form-control" rows="2" id="add_description"></textarea>
+                    <textarea name="description" class="form-control" rows="2"></textarea>
                 </div>
                 
                 <div class="form-row">
                     <div class="form-group">
                         <label class="form-label">Selling Price *</label>
-                            <input type="number" name="price" class="form-control" step="0.01" required id="add_price">
+                        <input type="number" name="price" class="form-control" step="0.01" required>
                     </div>
                     <div class="form-group">
                         <label class="form-label">Cost Price *</label>
-                            <input type="number" name="cost_price" class="form-control" step="0.01" required id="add_cost_price">
+                        <input type="number" name="cost_price" class="form-control" step="0.01" required>
                     </div>
                 </div>
                 
                 <div class="form-row">
                     <div class="form-group">
                         <label class="form-label">Initial Stock *</label>
-                            <input type="number" name="current_stock" class="form-control" required id="add_current_stock">
+                        <input type="number" name="current_stock" class="form-control" required>
                     </div>
                     <div class="form-group">
                         <label class="form-label">Minimum Stock *</label>
-                            <input type="number" name="minimum_stock" class="form-control" value="5" required id="add_minimum_stock">
+                        <input type="number" name="minimum_stock" class="form-control" value="5" required>
                     </div>
                 </div>
                 
-                <!-- Maximum Stock and Reorder Level removed from UI; keep hidden inputs so server still receives values -->
-                <input type="hidden" name="maximum_stock" id="add_maximum_stock" value="100">
-                <input type="hidden" name="reorder_level" id="add_reorder_level" value="10">
-
-                <div class="form-group">
-                    <label class="form-label">Product Image</label>
-                    <input type="file" name="product_image" class="form-control" accept="image/*">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Maximum Stock</label>
+                        <input type="number" name="maximum_stock" class="form-control" value="100">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Reorder Level</label>
+                        <input type="number" name="reorder_level" class="form-control" value="10">
+                    </div>
                 </div>
                 
                 <div style="text-align: right; margin-top: 20px; border-top: 1px solid #eee; padding-top: 15px;">
@@ -717,7 +509,7 @@ try {
             <span class="close" onclick="closeModal('editModal')">&times;</span>
         </div>
         <div class="modal-body">
-            <form method="POST" id="editForm" enctype="multipart/form-data">
+            <form method="POST" id="editForm">
                 <input type="hidden" name="action" value="edit_product">
                 <input type="hidden" name="product_id" id="edit_product_id">
                 
@@ -770,13 +562,15 @@ try {
                     </div>
                 </div>
                 
-                <!-- Maximum Stock and Reorder Level removed from UI; preserve hidden inputs for server compatibility -->
-                <input type="hidden" name="maximum_stock" id="edit_maximum_stock" value="100">
-                <input type="hidden" name="reorder_level" id="edit_reorder_level" value="10">
-
-                <div class="form-group">
-                    <label class="form-label">Product Image (leave blank to keep existing)</label>
-                    <input type="file" name="product_image" class="form-control" accept="image/*">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Maximum Stock</label>
+                        <input type="number" name="maximum_stock" id="edit_maximum_stock" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Reorder Level</label>
+                        <input type="number" name="reorder_level" id="edit_reorder_level" class="form-control">
+                    </div>
                 </div>
                 
                 <div style="text-align: right; margin-top: 20px; border-top: 1px solid #eee; padding-top: 15px;">
@@ -795,38 +589,6 @@ function openAddModal() {
     document.getElementById('addModal').style.display = 'block';
 }
 
-function openViewSupplies(mode = '') {
-    // mode: 'coffee', 'food', or '' for all
-    const modal = document.getElementById('viewSuppliesModal');
-    modal.style.display = 'block';
-
-    // Normalize mode
-    mode = String(mode || '').toLowerCase();
-
-    // Define allowed category names for coffee/food matching
-    const coffeeCats = ['hot coffee','iced coffee','tea'];
-    const foodCats = ['pastries','sandwiches'];
-
-    // Filter rows in the supplies modal table
-    const rows = modal.querySelectorAll('tbody tr');
-    rows.forEach(row => {
-        // skip placeholder 'No supplies found.' row
-        if (row.querySelector('td') && row.querySelector('td').colSpan == 9 && row.innerText.trim().toLowerCase().includes('no supplies')) return;
-        const catCell = row.cells[1];
-        const cat = catCell ? (catCell.innerText || '').trim().toLowerCase() : '';
-
-        let show = true;
-        if (mode === 'coffee') show = coffeeCats.includes(cat);
-        else if (mode === 'food') show = foodCats.includes(cat);
-
-        row.style.display = show ? '' : 'none';
-    });
-
-    // highlight supplies button only (coffee/food control the main grid)
-    const vSupplies = document.getElementById('viewSuppliesBtn');
-    if (vSupplies) vSupplies.classList.add('active');
-}
-
 function openEditModal(product) {
     document.getElementById('edit_product_id').value = product.product_id;
     document.getElementById('edit_product_name').value = product.product_name;
@@ -837,56 +599,14 @@ function openEditModal(product) {
     document.getElementById('edit_cost_price').value = product.cost_price;
     document.getElementById('edit_current_stock').value = product.current_stock || 0;
     document.getElementById('edit_minimum_stock').value = product.minimum_stock || 5;
-    // set hidden fields for compatibility with server-side inventory updates
-    if (document.getElementById('edit_maximum_stock')) document.getElementById('edit_maximum_stock').value = product.maximum_stock ?? 100;
-    if (document.getElementById('edit_reorder_level')) document.getElementById('edit_reorder_level').value = product.reorder_level ?? 10;
+    document.getElementById('edit_maximum_stock').value = product.maximum_stock || 100;
+    document.getElementById('edit_reorder_level').value = product.reorder_level || 10;
     
-    // If the page is currently in Coffee View, show a minimal edit form (name, category, barcode, image)
-    try {
-        const viewCoffeeBtn = document.getElementById('viewCoffeeBtn');
-        const isCoffeeView = viewCoffeeBtn && viewCoffeeBtn.classList.contains('active');
-        const editHideIds = ['edit_price','edit_cost_price','edit_current_stock','edit_minimum_stock','edit_description'];
-
-        if (isCoffeeView) {
-            editHideIds.forEach(id => {
-                const el = document.getElementById(id);
-                if (!el) return;
-                const fg = el.closest('.form-group');
-                if (fg) fg.style.display = 'none';
-                el.required = false;
-            });
-            // ensure barcode and name and category remain required for coffee edits
-            const eb = document.getElementById('edit_barcode'); if (eb) eb.required = true;
-            const en = document.getElementById('edit_product_name'); if (en) en.required = true;
-            const ec = document.getElementById('edit_category_id'); if (ec) ec.required = true;
-        } else {
-            // restore full form for Food view
-            editHideIds.forEach(id => {
-                const el = document.getElementById(id);
-                if (!el) return;
-                const fg = el.closest('.form-group');
-                if (fg) fg.style.display = '';
-                // revert required where appropriate
-                if (id === 'edit_price' || id === 'edit_cost_price') el.required = true;
-            });
-            const eb = document.getElementById('edit_barcode'); if (eb) eb.required = false;
-        }
-    } catch (e) {
-        // silent fallback if DOM structure differs
-    }
-
     document.getElementById('editModal').style.display = 'block';
 }
 
 function closeModal(modalId) {
-    const el = document.getElementById(modalId);
-    if (el) el.style.display = 'none';
-
-    // if closing the supplies modal, clear only the supplies button active state
-    if (modalId === 'viewSuppliesModal') {
-        const vSupplies = document.getElementById('viewSuppliesBtn');
-        if (vSupplies) vSupplies.classList.remove('active');
-    }
+    document.getElementById(modalId).style.display = 'none';
 }
 
 function deleteProduct(productId, productName) {
@@ -936,7 +656,6 @@ function filterProducts() {
 window.onclick = function(event) {
     const addModal = document.getElementById('addModal');
     const editModal = document.getElementById('editModal');
-    const viewModal = document.getElementById('viewSuppliesModal');
     
     if (event.target === addModal) {
         addModal.style.display = 'none';
@@ -944,208 +663,7 @@ window.onclick = function(event) {
     if (event.target === editModal) {
         editModal.style.display = 'none';
     }
-    if (event.target === viewModal) {
-        viewModal.style.display = 'none';
-        // clear active states
-        const vSupplies = document.getElementById('viewSuppliesBtn');
-        const vCoffee = document.getElementById('viewCoffeeBtn');
-        const vFood = document.getElementById('viewFoodBtn');
-        if (vSupplies) vSupplies.classList.remove('active');
-        if (vCoffee) vCoffee.classList.remove('active');
-        if (vFood) vFood.classList.remove('active');
-    }
 }
-</script>
- 
-
-
-
-<script>
-// Page-level view toggle: Coffee vs Food vs Supplies (controls the main products grid)
-document.addEventListener('DOMContentLoaded', function(){
-    const viewCoffeeBtn = document.getElementById('viewCoffeeBtn');
-    const viewFoodBtn = document.getElementById('viewFoodBtn');
-    const viewSuppliesBtn = document.getElementById('viewSuppliesBtn');
-    const productsTable = document.getElementById('productsTable');
-    const suppliesModal = document.getElementById('viewSuppliesModal');
-
-    // Backup original products table header and body so we can restore them
-    const originalProductsBody = productsTable.querySelector('tbody').innerHTML;
-    const originalProductsHead = productsTable.querySelector('thead').innerHTML;
-
-    // column indices visible in coffee view: Image(0), Name(1), Category(2), Barcode(3), Actions(9)
-    const coffeeVisible = [0,1,2,3,9];
-
-    function setActiveButton(activeBtn){
-        [viewCoffeeBtn, viewFoodBtn, viewSuppliesBtn].forEach(b => b && b.classList.remove('active'));
-        if (activeBtn) activeBtn.classList.add('active');
-    }
-
-    // Restore original products table body
-    function restoreOriginalProducts() {
-        productsTable.querySelector('tbody').innerHTML = originalProductsBody;
-        // restore original header
-        const thead = productsTable.querySelector('thead');
-        if (thead) thead.innerHTML = originalProductsHead;
-        // restore full categoryFilter visibility
-        const catFilter = document.getElementById('categoryFilter');
-        if (catFilter) {
-            Array.from(catFilter.options).forEach(o => o.style.display = '');
-        }
-    }
-
-    window.showCoffeeView = function(){
-        // restore original table before applying coffee filter
-        restoreOriginalProducts();
-        setActiveButton(viewCoffeeBtn);
-        const ths = productsTable.querySelectorAll('thead th');
-        ths.forEach((th, idx) => th.style.display = coffeeVisible.includes(idx) ? '' : 'none');
-        productsTable.querySelectorAll('tbody tr').forEach(row => {
-            const cat = (row.cells[2] && row.cells[2].innerText.trim().toLowerCase()) || '';
-            if (['hot coffee','iced coffee','tea'].includes(cat)) {
-                row.style.display = '';
-            } else {
-                row.style.display = 'none';
-            }
-            Array.from(row.cells).forEach((cell, ci) => cell.style.display = coffeeVisible.includes(ci) ? '' : 'none');
-        });
-        // limit categoryFilter to coffee categories
-        const catFilter = document.getElementById('categoryFilter');
-        if (catFilter) {
-            const opts = Array.from(catFilter.options);
-            opts.forEach(o => {
-                const txt = (o.text || '').trim().toLowerCase();
-                if (o.value === '') { o.style.display = ''; return; }
-                o.style.display = ['hot coffee','iced coffee','tea'].includes(txt) ? '' : 'none';
-            });
-            catFilter.value = '';
-        }
-    };
-
-    window.showFoodView = function(){
-        // restore original table before applying food filter
-        restoreOriginalProducts();
-        setActiveButton(viewFoodBtn);
-        productsTable.querySelectorAll('thead th').forEach(th => th.style.display = '');
-        productsTable.querySelectorAll('tbody tr').forEach(row => {
-            const cat = (row.cells[2] && row.cells[2].innerText.trim().toLowerCase()) || '';
-            if (['pastries','sandwiches'].includes(cat)) {
-                row.style.display = '';
-            } else {
-                row.style.display = 'none';
-            }
-            Array.from(row.cells).forEach(cell => cell.style.display = '');
-        });
-        const catFilter = document.getElementById('categoryFilter');
-        if (catFilter) {
-            Array.from(catFilter.options).forEach(o => {
-                const txt = (o.text || '').trim().toLowerCase();
-                if (o.value === '') { o.style.display = ''; return; }
-                o.style.display = ['pastries','sandwiches'].includes(txt) ? '' : 'none';
-            });
-            catFilter.value = '';
-        }
-    };
-
-    // Show supplies in the main products grid (use the supplies modal rows as source)
-    window.showSuppliesView = function(){
-        // restore original table (we'll rebuild tbody to supplies layout)
-        restoreOriginalProducts();
-        setActiveButton(viewSuppliesBtn);
-
-        // Replace table header to supplies columns: Name, Size, Price, Quantity, Actions
-        const thead = productsTable.querySelector('thead');
-        thead.innerHTML = '<tr><th>Name</th><th>Size</th><th>Price</th><th>Quantity</th><th>Actions</th></tr>';
-
-        // build tbody from supplies modal rows
-        const sRows = suppliesModal.querySelectorAll('tbody tr');
-        const tbody = productsTable.querySelector('tbody');
-        tbody.innerHTML = '';
-
-        // collect categories present in supplies for filtering (if categoryFilter exists)
-        const suppliesCategories = new Set();
-
-        sRows.forEach(sRow => {
-            // skip placeholder row
-            const firstTd = sRow.querySelector('td');
-            if (!firstTd) return;
-            if (firstTd.colSpan && firstTd.colSpan >= 4 && firstTd.innerText.toLowerCase().includes('no supplies')) return;
-
-            // Map modal columns (Name, Size, Price, Quantity, Actions) if present
-            const cols = Array.from(sRow.children).map(td => td.innerText.trim());
-
-            const tr = document.createElement('tr');
-            const nameTd = document.createElement('td'); nameTd.innerText = cols[0] || ''; tr.appendChild(nameTd);
-            const sizeTd = document.createElement('td'); sizeTd.innerText = cols[1] || ''; tr.appendChild(sizeTd);
-            const priceTd = document.createElement('td'); priceTd.innerText = cols[2] || ''; tr.appendChild(priceTd);
-            const qtyTd = document.createElement('td'); qtyTd.innerText = cols[3] || ''; tr.appendChild(qtyTd);
-            const actTd = document.createElement('td'); actTd.innerHTML = sRow.children[sRow.children.length - 1].innerHTML || ''; tr.appendChild(actTd);
-
-            // remember this category text if present in modal (for filter behavior later)
-            const catCell = sRow.querySelector('td:nth-child(2)');
-            if (catCell) suppliesCategories.add(catCell.innerText.trim());
-
-            tbody.appendChild(tr);
-        });
-
-        // Restrict the top categoryFilter to only the supplies categories (if exists)
-        const catFilter = document.getElementById('categoryFilter');
-        if (catFilter) {
-            Array.from(catFilter.options).forEach(o => {
-                const txt = (o.text || '').trim();
-                if (o.value === '') { o.style.display = ''; return; }
-                o.style.display = suppliesCategories.has(o.text) ? '' : 'none';
-            });
-            catFilter.value = '';
-        }
-    };
-
-    // default to Combined Coffee + Food view
-    window.showCombinedView = function(){
-        restoreOriginalProducts();
-        // show all rows that are either coffee or food categories
-        const allowed = ['hot coffee','iced coffee','tea','pastries','sandwiches'];
-        productsTable.querySelectorAll('tbody tr').forEach(row => {
-            const cat = (row.cells[2] && row.cells[2].innerText.trim().toLowerCase()) || '';
-            if (allowed.includes(cat)) row.style.display = '';
-            else row.style.display = 'none';
-            Array.from(row.cells).forEach(cell => cell.style.display = '');
-        });
-        // restrict categoryFilter to the allowed set
-        const catFilter2 = document.getElementById('categoryFilter');
-        if (catFilter2) {
-            Array.from(catFilter2.options).forEach(o => {
-                const txt = (o.text || '').trim().toLowerCase();
-                if (o.value === '') { o.style.display = ''; return; }
-                o.style.display = allowed.includes(txt) ? '' : 'none';
-            });
-            catFilter2.value = '';
-        }
-    };
-
-    showCombinedView();
-});
-// Supplies modal helpers: allow resetting filters and closing with Escape
-document.addEventListener('DOMContentLoaded', function(){
-    const modal = document.getElementById('viewSuppliesModal');
-    // Add a small 'Show All' control if missing
-    const header = modal.querySelector('.modal-header');
-    if (header && !modal.querySelector('.show-all-btn')) {
-        const btn = document.createElement('button');
-        btn.className = 'btn btn-sm show-all-btn';
-        btn.style.marginLeft = '8px';
-        btn.textContent = 'Show All';
-        btn.onclick = function(){ openViewSupplies(''); };
-        header.appendChild(btn);
-    }
-
-    // Close modal with Escape key
-    window.addEventListener('keydown', function(e){
-        if (e.key === 'Escape') {
-            if (modal && modal.style.display === 'block') modal.style.display = 'none';
-        }
-    });
-});
 </script>
 
 <?php include '../components/layout-end.php'; ?>
