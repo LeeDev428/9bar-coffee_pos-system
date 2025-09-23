@@ -1,15 +1,12 @@
 <?php
 // Admin Inventory Management Page
 $page_title = 'INVENTORY MANAGEMENT';
-// Items panel removed; no need for $openItemsPanel flag
-include '../components/main-layout.php';
+include '../components/layout-start.php';
 
 // Handle form submissions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['action'])) {
         switch ($_POST['action']) {
-            // Items management removed: add_item handling has been removed since the Items UI was deleted
-            // update_item_stock handler removed (Stocks now shown as status only)
             case 'stock_adjustment':
                 try {
                     $productId = intval($_POST['product_id']);
@@ -133,57 +130,28 @@ $lowStockCount = count(array_filter($inventoryData, function($item) { return $it
 $reorderCount = count(array_filter($inventoryData, function($item) { return $item['stock_status'] === 'reorder'; }));
 $totalValue = array_sum(array_map(function($item) { return $item['current_stock'] * $item['cost_price']; }, $inventoryData));
 ?>
-<?php
-// Fetch items list (inventory_items) safely
-try {
-    $itemsList = $db->fetchAll("SELECT ii.*, u.username as added_by_name FROM inventory_items ii LEFT JOIN users u ON ii.added_by = u.user_id ORDER BY ii.date_added DESC, ii.time_added DESC");
-} catch (Exception $e) {
-    $itemsList = [];
-}
-
-// Items stats
-$totalItems = count($itemsList);
-$lowItemCount = 0;
-foreach ($itemsList as $it) {
-    if (isset($it['quantity']) && intval($it['quantity']) <= 0) $lowItemCount++;
-}
-?>
 
 <style>
 .inventory-header {
-    display: block; /* ensure header spans full width */
-    width: 100%;
-    box-sizing: border-box;
-    margin-bottom: 18px;
-    padding: 0 8px; /* small horizontal padding to align with page content */
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
 }
 
 .inventory-stats {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr)); /* evenly distribute 4 columns */
-    gap: 18px;
-    width: 100%;
-    margin: 0;
-}
-
-@media (max-width: 900px) {
-    .inventory-stats { grid-template-columns: repeat(2, 1fr); }
-}
-
-@media (max-width: 480px) {
-    .inventory-stats { grid-template-columns: 1fr; }
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
 }
 
 .stat-card {
     background: white;
-    padding: 22px;
+    padding: 20px;
     border-radius: 8px;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     text-align: center;
-    min-height: 96px; /* make cards more prominent */
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
 }
 
 .stat-value {
@@ -263,10 +231,6 @@ foreach ($itemsList as $it) {
 
 .btn:hover { opacity: 0.9; transform: translateY(-1px); }
 .btn-sm { padding: 5px 10px; font-size: 11px; }
-/* Ensure small buttons have enough space to show labels */
-.btn-sm { padding: 6px 10px; font-size: 12px; min-width: 64px; white-space: nowrap; }
-
-.btn .btn-text { margin-left: 6px; display: inline-block; }
 
 .filters-bar {
     display: flex;
@@ -369,8 +333,6 @@ tbody tr:hover {
     margin-bottom: 15px;
 }
 
-/* inline-stock-form removed: Stocks is now a read-only Status + Quantity column */
-
 .form-label {
     display: block;
     margin-bottom: 5px;
@@ -405,10 +367,39 @@ tbody tr:hover {
     overflow-y: auto;
 }
 
+.activity-item {
+    padding: 10px;
+    border-bottom: 1px solid #f0f0f0;
+    font-size: 12px;
+}
+
+.activity-item:last-child {
+    border-bottom: none;
+}
+
+.activity-date {
+    color: #7f8c8d;
+    font-size: 11px;
+}
 </style>
 
 <div class="inventory-header">
-    <div class="inventory-stats">
+    <div>
+        <h2 style="margin: 0; color: #2c3e50;">Inventory Management</h2>
+        <p style="color: #7f8c8d; margin: 5px 0 0 0;">Monitor and manage your stock levels</p>
+    </div>
+    <div>
+        <button class="btn btn-success" onclick="showBulkReorderModal()">
+            <i class="fas fa-shopping-cart"></i> Bulk Reorder
+        </button>
+        <button class="btn btn-info" onclick="exportInventory()">
+            <i class="fas fa-download"></i> Export
+        </button>
+    </div>
+</div>
+
+<!-- Inventory Statistics -->
+<div class="inventory-stats">
     <div class="stat-card">
         <div class="stat-value stat-info"><?php echo $totalProducts; ?></div>
         <div class="stat-label">Total Products</div>
@@ -425,11 +416,7 @@ tbody tr:hover {
         <div class="stat-value stat-success">₱<?php echo number_format($totalValue, 2); ?></div>
         <div class="stat-label">Total Inventory Value</div>
     </div>
-    </div>
 </div>
-
-<!-- Items Stats (hidden by default, moved to right column for alignment) -->
-<!-- moved into .inventory-tools below to align with product Low Stock card -->
 
 <div class="inventory-content">
     <!-- Main Inventory Table -->
@@ -494,13 +481,11 @@ tbody tr:hover {
                         </td>
                         <td><?php echo $item['last_updated'] ? date('M j, Y', strtotime($item['last_updated'])) : 'N/A'; ?></td>
                         <td>
-                            <button class="btn btn-primary btn-sm" title="Adjust Stock" onclick="openStockAdjustment(<?php echo htmlspecialchars(json_encode($item)); ?>)">
+                            <button class="btn btn-primary btn-sm" onclick="openStockAdjustment(<?php echo htmlspecialchars(json_encode($item)); ?>)">
                                 <i class="fas fa-edit"></i>
-                                <span class="btn-text">Adjust</span>
                             </button>
-                            <button class="btn btn-warning btn-sm" title="Update Levels" onclick="openStockLevels(<?php echo htmlspecialchars(json_encode($item)); ?>)">
+                            <button class="btn btn-warning btn-sm" onclick="openStockLevels(<?php echo htmlspecialchars(json_encode($item)); ?>)">
                                 <i class="fas fa-cog"></i>
-                                <span class="btn-text">Levels</span>
                             </button>
                         </td>
                     </tr>
@@ -510,10 +495,22 @@ tbody tr:hover {
         </div>
     </div>
     
-        <!-- Items panel removed per request -->
     <!-- Tools Panel -->
     <div class="inventory-tools">
-        <!-- Quick Actions removed per request; only Items Summary info card will remain below -->
+        <div class="tools-section">
+            <div class="section-title">Quick Actions</div>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+                <button class="btn btn-success" onclick="showBulkReorderModal()">
+                    <i class="fas fa-shopping-cart"></i> Bulk Reorder Low Stock
+                </button>
+                <button class="btn btn-info" onclick="exportInventory()">
+                    <i class="fas fa-download"></i> Export Report
+                </button>
+                <button class="btn btn-warning" onclick="showStockAlerts()">
+                    <i class="fas fa-exclamation-triangle"></i> Stock Alerts
+                </button>
+            </div>
+        </div>
         
         <div class="tools-section">
             <div class="section-title">Recent Activities</div>
@@ -533,8 +530,6 @@ tbody tr:hover {
                 <?php endforeach; ?>
             </div>
         </div>
-        
-        <!-- Items summary removed -->
     </div>
 </div>
 
@@ -710,44 +705,36 @@ function showBulkReorderModal() {
 }
 
 function exportInventory() {
-    // Export the inventoryTable
-    const table = document.getElementById('inventoryTable');
-    if (!table) {
-        alert('No table found to export.');
-        return;
-    }
-
-    // Build headers dynamically from the table's thead
-    const headers = [];
-    table.querySelectorAll('thead th').forEach(th => headers.push(th.textContent.trim()));
-
-    const data = [headers];
-
-    // Collect visible rows
-    const rows = table.querySelectorAll('tbody tr');
+    // Create CSV export
+    const data = [];
+    const rows = document.querySelectorAll('#inventoryTable tbody tr');
+    
+    // Add headers
+    data.push(['Product', 'Category', 'Current Stock', 'Min Stock', 'Max Stock', 'Reorder Level', 'Status']);
+    
     rows.forEach(row => {
-        if (row.classList.contains('empty-row')) return;
-        if (row.style.display === 'none') return;
-        const cells = row.querySelectorAll('td');
-        const rowData = [];
-        cells.forEach(cell => rowData.push(cell.textContent.trim()));
-        data.push(rowData);
+        if (row.style.display !== 'none') {
+            const cells = row.querySelectorAll('td');
+            data.push([
+                cells[0].textContent.trim(),
+                cells[1].textContent.trim(),
+                cells[2].textContent.trim(),
+                cells[3].textContent.trim(),
+                cells[4].textContent.trim(),
+                cells[6].textContent.trim()
+            ]);
+        }
     });
-
-    if (data.length <= 1) {
-        alert('No rows to export.');
-        return;
-    }
-
-    // Proper CSV quoting for fields containing commas/newlines/quotes
-    const csv = data.map(r => r.map(f => '"' + String(f).replace(/"/g, '""') + '"').join(',')).join('\n');
-
+    
+    // Convert to CSV
+    const csv = data.map(row => row.join(',')).join('\n');
+    
+    // Download
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    const baseName = 'inventory_report_';
-    a.download = baseName + new Date().toISOString().split('T')[0] + '.csv';
+    a.download = 'inventory_report_' + new Date().toISOString().split('T')[0] + '.csv';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -771,6 +758,6 @@ window.onclick = function(event) {
         }
     });
 }
+</script>
 
-// Ensure the page finishes with the standard layout end include
 <?php include '../components/layout-end.php'; ?>
