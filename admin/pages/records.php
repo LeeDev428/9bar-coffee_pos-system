@@ -1,7 +1,7 @@
 <?php
 // Admin Records & Reports Page
 $page_title = 'RECORDS & REPORTS';
-include '../components/main-layout.php';
+include '../components/layout-start.php';
 
 // Get date filters from request
 $startDate = $_GET['start_date'] ?? date('Y-m-d', strtotime('-30 days'));
@@ -24,7 +24,7 @@ $salesData = $db->fetchAll("
 $topProducts = $db->fetchAll("
     SELECT p.product_name, 
            SUM(si.quantity) as total_quantity,
-           SUM(si.total_price) as total_revenue,
+           SUM(si.subtotal) as total_revenue,
            COUNT(DISTINCT s.sale_id) as transaction_count
     FROM sale_items si
     JOIN products p ON si.product_id = p.product_id
@@ -39,7 +39,7 @@ $topProducts = $db->fetchAll("
 $categoryPerformance = $db->fetchAll("
     SELECT c.category_name,
            SUM(si.quantity) as total_quantity,
-           SUM(si.total_price) as total_revenue,
+           SUM(si.subtotal) as total_revenue,
            AVG(si.unit_price) as avg_price
     FROM sale_items si
     JOIN products p ON si.product_id = p.product_id
@@ -75,22 +75,15 @@ $staffPerformance = $db->fetchAll("
 ", [$startDate, $endDate]);
 
 // Recent Transactions
-// Note: some database schemas may not have a `customer_name` column on `sales`.
-// Use COALESCE to ensure query does not fail if customer_name is NULL, and
-// select only known columns to avoid "Unknown column" errors.
 $recentTransactions = $db->fetchAll("
-    SELECT s.sale_id,
-           s.sale_date,
-           s.total_amount,
-           s.payment_method,
-           u.username,
-           NULL AS customer_name,
-           (
-               SELECT COUNT(*) FROM sale_items si2 WHERE si2.sale_id = s.sale_id
-           ) as item_count
+    SELECT s.sale_id, s.sale_date, s.total_amount, s.payment_method,
+           u.username, s.customer_name,
+           COUNT(si.product_id) as item_count
     FROM sales s
     JOIN users u ON s.user_id = u.user_id
+    LEFT JOIN sale_items si ON s.sale_id = si.sale_id
     WHERE DATE(s.sale_date) BETWEEN ? AND ?
+    GROUP BY s.sale_id
     ORDER BY s.sale_date DESC
     LIMIT 50
 ", [$startDate, $endDate]);
@@ -328,6 +321,9 @@ $avgTransaction = $totalTransactions > 0 ? $totalSales / $totalTransactions : 0;
         <p style="color: #7f8c8d; margin: 5px 0 0 0;">Business analytics and transaction history</p>
     </div>
     <div>
+        <button class="btn btn-success" onclick="exportReport('sales')">
+            <i class="fas fa-download"></i> Export Sales
+        </button>
         <button class="btn btn-info" onclick="exportReport('transactions')">
             <i class="fas fa-file-excel"></i> Export Transactions
         </button>
