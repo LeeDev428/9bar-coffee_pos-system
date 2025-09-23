@@ -138,31 +138,12 @@ CREATE TABLE `sale_items` (
     `quantity` INT(11) NOT NULL DEFAULT 1,
     `unit_price` DECIMAL(10,2) NOT NULL,
     `total_price` DECIMAL(10,2) NOT NULL,
-    `subtotal` DECIMAL(10,2) NOT NULL,
     `discount_per_item` DECIMAL(10,2) NOT NULL DEFAULT 0.00,
     PRIMARY KEY (`sale_item_id`),
     FOREIGN KEY (`sale_id`) REFERENCES `sales`(`sale_id`) ON DELETE CASCADE,
     FOREIGN KEY (`product_id`) REFERENCES `products`(`product_id`),
     INDEX `idx_sale_id` (`sale_id`),
     INDEX `idx_product_id` (`product_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- Stock Adjustments Table (for inventory management)
-CREATE TABLE `stock_adjustments` (
-    `adjustment_id` INT(11) NOT NULL AUTO_INCREMENT,
-    `product_id` INT(11) NOT NULL,
-    `adjustment_type` ENUM('add', 'subtract', 'set') NOT NULL,
-    `quantity_before` INT(11) NOT NULL DEFAULT 0,
-    `quantity_after` INT(11) NOT NULL DEFAULT 0,
-    `adjustment_quantity` INT(11) NOT NULL,
-    `reason` TEXT,
-    `adjusted_by` INT(11) NOT NULL,
-    `adjustment_date` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (`adjustment_id`),
-    FOREIGN KEY (`product_id`) REFERENCES `products`(`product_id`) ON DELETE CASCADE,
-    FOREIGN KEY (`adjusted_by`) REFERENCES `users`(`user_id`) ON DELETE CASCADE,
-    INDEX `idx_product_id` (`product_id`),
-    INDEX `idx_adjustment_date` (`adjustment_date`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ===================================
@@ -227,34 +208,34 @@ INSERT INTO `inventory` (`product_id`, `current_stock`, `minimum_stock`, `maximu
 (10, 6, 2, 20, 5);
 
 -- Insert Sample Sales
-INSERT INTO `sales` (`transaction_number`, `user_id`, `total_amount`, `payment_method`, `sale_date`) VALUES
-('TXN-20250917-001', 1,  320.00, 'cash', '2025-09-17 08:30:00'),
-('TXN-20250917-002', 2,  250.00, 'card', '2025-09-17 09:15:00'),
-('TXN-20250917-003', 1,  180.00, 'cash', '2025-09-17 10:00:00'),
-('TXN-20250917-004', 2,  410.00, 'digital_wallet', '2025-09-17 11:30:00'),
-('TXN-20250917-005', 1, 290.00, 'card', '2025-09-17 13:45:00');
+INSERT INTO `sales` (`transaction_number`, `user_id`, `customer_name`, `total_amount`, `payment_method`, `sale_date`) VALUES
+('TXN-20250917-001', 1, 'John Doe', 320.00, 'cash', '2025-09-17 08:30:00'),
+('TXN-20250917-002', 2, 'Jane Smith', 250.00, 'card', '2025-09-17 09:15:00'),
+('TXN-20250917-003', 1, 'Mike Johnson', 180.00, 'cash', '2025-09-17 10:00:00'),
+('TXN-20250917-004', 2, 'Sarah Wilson', 410.00, 'digital_wallet', '2025-09-17 11:30:00'),
+('TXN-20250917-005', 1, 'David Brown', 290.00, 'card', '2025-09-17 13:45:00');
 
 -- Insert Sample Sale Items
-INSERT INTO `sale_items` (`sale_id`, `product_id`, `quantity`, `unit_price`, `total_price`, `subtotal`) VALUES
+INSERT INTO `sale_items` (`sale_id`, `product_id`, `quantity`, `unit_price`, `total_price`) VALUES
 -- Sale 1: TXN-20250917-001
-(1, 2, 2, 150.00, 300.00, 300.00),  -- 2 Cappuccinos
-(1, 7, 1, 80.00, 80.00, 80.00),    -- 1 Croissant
+(1, 2, 2, 150.00, 300.00),  -- 2 Cappuccinos
+(1, 7, 1, 80.00, 80.00),    -- 1 Croissant
 
 -- Sale 2: TXN-20250917-002  
-(2, 3, 1, 160.00, 160.00, 160.00),  -- 1 Latte
-(2, 8, 1, 95.00, 95.00, 95.00),    -- 1 Chocolate Muffin
+(2, 3, 1, 160.00, 160.00),  -- 1 Latte
+(2, 8, 1, 95.00, 95.00),    -- 1 Chocolate Muffin
 
 -- Sale 3: TXN-20250917-003
-(3, 9, 1, 180.00, 180.00, 180.00),  -- 1 Club Sandwich
+(3, 9, 1, 180.00, 180.00),  -- 1 Club Sandwich
 
 -- Sale 4: TXN-20250917-004
-(4, 5, 2, 170.00, 340.00, 340.00),  -- 2 Iced Lattes  
-(4, 7, 1, 80.00, 80.00, 80.00),    -- 1 Croissant
+(4, 5, 2, 170.00, 340.00),  -- 2 Iced Lattes  
+(4, 7, 1, 80.00, 80.00),    -- 1 Croissant
 
 -- Sale 5: TXN-20250917-005
-(5, 1, 1, 120.00, 120.00, 120.00),  -- 1 Americano
-(5, 10, 1, 160.00, 160.00, 160.00), -- 1 Tuna Wrap
-(5, 8, 1, 95.00, 95.00, 95.00);    -- 1 Chocolate Muffin
+(5, 1, 1, 120.00, 120.00),  -- 1 Americano
+(5, 10, 1, 160.00, 160.00), -- 1 Tuna Wrap
+(5, 8, 1, 95.00, 95.00);    -- 1 Chocolate Muffin
 
 -- Insert Default System Settings
 INSERT INTO `settings` (`setting_key`, `setting_value`, `setting_type`, `description`) VALUES
@@ -392,9 +373,60 @@ BEGIN
         critical_items as critical_items;
 END$$
 
+-- ===================================
+-- STOCK ADJUSTMENTS TABLE
+-- ===================================
+
+-- Stock Adjustments Table (for inventory management)
+CREATE TABLE `stock_adjustments` (
+    `adjustment_id` INT(11) NOT NULL AUTO_INCREMENT,
+    `product_id` INT(11) NOT NULL,
+    `adjustment_type` ENUM('add', 'subtract', 'set') NOT NULL,
+    `quantity_before` INT(11) NOT NULL DEFAULT 0,
+    `quantity_after` INT(11) NOT NULL DEFAULT 0,
+    `adjustment_quantity` INT(11) NOT NULL,
+    `reason` TEXT,
+    `adjusted_by` INT(11) NOT NULL,
+    `adjustment_date` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`adjustment_id`),
+    FOREIGN KEY (`product_id`) REFERENCES `products`(`product_id`) ON DELETE CASCADE,
+    FOREIGN KEY (`adjusted_by`) REFERENCES `users`(`user_id`) ON DELETE CASCADE,
+    INDEX `idx_product_id` (`product_id`),
+    INDEX `idx_adjustment_date` (`adjustment_date`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ===================================
+-- SYSTEM SETTINGS TABLE
+-- ===================================
+
+-- Settings Table (for system configuration)
+CREATE TABLE `settings` (
+    `setting_id` INT(11) NOT NULL AUTO_INCREMENT,
+    `setting_key` VARCHAR(100) NOT NULL UNIQUE,
+    `setting_value` TEXT,
+    `description` TEXT,
+    `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`setting_id`),
+    UNIQUE KEY `uk_setting_key` (`setting_key`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Insert default settings
+INSERT INTO `settings` (`setting_key`, `setting_value`, `description`) VALUES
+('business_name', '9Bar Coffee', 'Business name displayed on receipts and reports'),
+('business_address', 'Balamban, Cebu, Philippines', 'Business address'),
+('business_phone', '(032) 123-4567', 'Business phone number'),
+('business_email', 'info@9barcoffee.com', 'Business email address'),
+('tax_rate', '12.00', 'Tax rate percentage'),
+('currency', 'PHP', 'Currency code'),
+('receipt_header', 'Welcome to 9Bar Coffee!\nThank you for your visit!', 'Receipt header text'),
+('receipt_footer', 'Have a great day!\nPlease come again!', 'Receipt footer text'),
+('auto_print_receipt', '0', 'Auto print receipt after sale'),
+('allow_discounts', '1', 'Allow discounts in POS'),
+('require_customer_name', '0', 'Require customer name for sales'),
+('low_stock_alert', '10', 'Low stock alert threshold');
+
 DELIMITER ;
 
 -- Grant permissions (adjust as needed for your setup)
 -- GRANT ALL PRIVILEGES ON 9bar_pos.* TO 'pos_user'@'localhost' IDENTIFIED BY 'pos_password';
--- FLUSH PRIVILEGES;
 -- FLUSH PRIVILEGES;
