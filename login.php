@@ -12,13 +12,7 @@ try {
 
 // Check if user is already logged in
 if ($auth->isLoggedIn()) {
-    // Redirect based on user role
-    $user = $auth->getCurrentUser();
-    if ($user['role'] === 'admin') {
-        redirectTo('admin/pages/dashboard.php');
-    } else {
-        redirectTo('staff/pages/dashboard.php');
-    }
+    redirectTo('dashboard.php');
 }
 
 $error = '';
@@ -36,14 +30,8 @@ if ($_POST) {
         $loginResult = $auth->login($username, $password);
         
         if ($loginResult['success']) {
-            // Redirect based on user role
-            $user = $auth->getCurrentUser();
             showAlert($loginResult['message'], 'success');
-            if ($user['role'] === 'admin') {
-                redirectTo('admin/pages/dashboard.php');
-            } else {
-                redirectTo('staff/pages/dashboard.php');
-            }
+            redirectTo('dashboard.php');
         } else {
             $error = $loginResult['message'];
             $isLocked = $loginResult['locked'] ?? false;
@@ -173,7 +161,7 @@ if ($_POST) {
                     <p style="color: #95a5a6; font-size: 0.9rem;">
                         Default Login:<br>
                         <strong>Username:</strong> admin | <strong>Password:</strong> admin123<br>
-                        <strong>Username:</strong> staff1 | <strong>Password:</strong> admin123
+                        <strong>Username:</strong> staff1 | <strong>Password:</strong> staff123
                     </p>
                 </div>
             </form>
