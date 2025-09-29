@@ -17,7 +17,7 @@ $productChart = $dashboard->getProductQuantityChart();
         <div class="stat-header">
             <h3 class="stat-title">Daily Sales</h3>
             <div class="stat-icon">
-                <i class="fas fa-dollar-sign"></i>
+                <span class="currency-sign">₱</span>
             </div>
         </div>
         <p class="stat-value"><?php echo formatCurrency($stats['daily_sales'] ?? 0); ?></p>
