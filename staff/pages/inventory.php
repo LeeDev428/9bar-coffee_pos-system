@@ -1,20 +1,7 @@
 <?php
 // Staff Inventory View Page
-require_once '../../includes/database.php';
-require_once '../../includes/auth.php';
-require_once '../../includes/functions.php';
-
-// Initialize database and auth
-try {
-    $db = new Database();
-    $auth = new Auth($db);
-} catch (Exception $e) {
-    die("Database connection failed: " . $e->getMessage());
-}
-
-// Require login (staff or admin)
-$auth->requireLogin();
-$user = $auth->getCurrentUser();
+$page_title = 'INVENTORY';
+include '../components/main-layout.php';
 
 // Get all products with inventory
 $sql = "SELECT p.product_id, p.product_name, p.price, p.barcode, p.status,
