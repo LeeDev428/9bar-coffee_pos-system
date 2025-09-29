@@ -1,4 +1,4 @@
-# 🖨️ Thermal Printer Setup Guide for 9Bar Coffee POS
+# 🖨️ Thermal Printer Setup Guide for 9BARS COFFEE POS
 
 ## 📋 **Quick Setup Steps**
 
@@ -185,4 +185,4 @@ If you encounter issues:
 4. Check POS system error logs
 5. Contact printer manufacturer support
 
-**Your thermal printer should now work seamlessly with the 9Bar Coffee POS system!** 🎉
+**Your thermal printer should now work seamlessly with the 9BARS COFFEE POS system!** 🎉
