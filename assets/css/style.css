@@ -382,7 +382,13 @@ body {
 .stat-card--purple { background: linear-gradient(135deg, #8e44ad 0%, #9b59b6 100%); color: #fff; border-left-color: transparent; }
 .stat-card--teal { background: linear-gradient(135deg, #1abc9c 0%, #16a085 100%); color: #fff; border-left-color: transparent; }
 
-.stat-card .stat-value { color: #fff; }
+.stats-grid .stat-card .stat-value { color: #fff; }
+
+/* Inventory and other white cards: let their .stat-value use their own color classes or inherit */
+.inventory-stats .stat-card .stat-value,
+.product-list .stat-card .stat-value {
+    color: inherit;
+}
 
 .stat-card:hover {
     transform: translateY(-2px);
