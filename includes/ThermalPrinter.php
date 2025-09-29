@@ -338,7 +338,7 @@ class ThermalPrinter {
              ->setAlign(self::ALIGN_CENTER)
              ->setTextSize(self::SIZE_DOUBLE)
              ->setBold(true)
-             ->textln("9BARS COFFEE")
+             ->textln("9BAR COFFEE")
              ->setTextSize(self::SIZE_NORMAL)
              ->setBold(false)
              ->textln("Thermal Printer Test")
