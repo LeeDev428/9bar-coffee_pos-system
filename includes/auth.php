@@ -136,7 +136,13 @@ class Auth {
     
     public function requireLogin() {
         if (!$this->isLoggedIn()) {
-            header('Location: login.php');
+            // Determine the correct path to login.php based on the current location
+            $scriptPath = $_SERVER['SCRIPT_NAME'];
+            if (strpos($scriptPath, '/admin/') !== false || strpos($scriptPath, '/staff/') !== false) {
+                header('Location: ../../login.php');
+            } else {
+                header('Location: login.php');
+            }
             exit();
         }
     }
@@ -144,7 +150,7 @@ class Auth {
     public function requireAdmin() {
         $this->requireLogin();
         if ($_SESSION['role'] !== 'admin') {
-            header('Location: dashboard.php');
+            header('Location: ../login.php');
             exit();
         }
     }
