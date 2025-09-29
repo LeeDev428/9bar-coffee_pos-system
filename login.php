@@ -12,7 +12,12 @@ try {
 
 // Check if user is already logged in
 if ($auth->isLoggedIn()) {
-    redirectTo('dashboard.php');
+    $user = $auth->getCurrentUser();
+    if ($user['role'] === 'admin') {
+        redirectTo('admin/pages/dashboard.php');
+    } else {
+        redirectTo('staff/pages/dashboard.php');
+    }
 }
 
 $error = '';
@@ -31,7 +36,12 @@ if ($_POST) {
         
         if ($loginResult['success']) {
             showAlert($loginResult['message'], 'success');
-            redirectTo('dashboard.php');
+            $user = $auth->getCurrentUser();
+            if ($user['role'] === 'admin') {
+                redirectTo('admin/pages/dashboard.php');
+            } else {
+                redirectTo('staff/pages/dashboard.php');
+            }
         } else {
             $error = $loginResult['message'];
             $isLocked = $loginResult['locked'] ?? false;
@@ -47,7 +57,7 @@ if ($_POST) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - 9BARS COFFEE POS</title>
+    <title>Login - BrewTopia POS</title>
     <link rel="stylesheet" href="assets/css/style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -58,11 +68,11 @@ if ($_POST) {
         <!-- Left Side - Logo and Branding -->
         <div class="login-left">
             <div class="login-logo">
-                <img src="assets/img/9barscoffee_logo.png" alt="9BARS COFFEE Logo">
+                <img src="assets/img/9bar-pos-logo.png" alt="BrewTopia Logo">
             </div>
             
             <h2 style="color: white; font-size: 2.5rem; margin-bottom: 10px;">
-                9BARS<br>COFFEE
+                BREW<br>TOPIA
             </h2>
             
             <p class="login-tagline">
