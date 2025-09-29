@@ -81,15 +81,17 @@ $productChart = $dashboard->getProductQuantityChart();
     <div class="chart-container">
         <h3 class="chart-title">Best Selling</h3>
         <div style="height: 250px; padding: 20px;">
+            <div class="best-selling-list">
             <?php if (!empty($bestSelling)): ?>
                 <?php foreach (array_slice($bestSelling, 0, 5) as $index => $product): ?>
-                    <div style="margin-bottom: 15px;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
-                            <span style="font-size: 0.9rem; color: #2c3e50;"><?php echo htmlspecialchars($product['product_name']); ?></span>
-                            <span style="font-size: 0.8rem; color: #7f8c8d;"><?php echo number_format($product['quantity_sold'] ?? 0); ?></span>
+                    <?php $count = (int)($product['quantity_sold'] ?? 0); $pct = min(100, $count * 5); ?>
+                    <div class="best-item">
+                        <div class="item-row">
+                            <div class="item-name"><?php echo htmlspecialchars($product['product_name']); ?></div>
+                            <div class="item-count"><?php echo number_format($count); ?></div>
                         </div>
-                        <div style="height: 8px; background: #ecf0f1; border-radius: 4px;">
-                            <div style="height: 100%; background: #e67e22; border-radius: 4px; width: <?php echo min(100, ($product['quantity_sold'] ?? 0) * 5); ?>%;"></div>
+                        <div class="progress">
+                            <div class="progress-bar" style="width: <?php echo $pct; ?>%;"></div>
                         </div>
                     </div>
                 <?php endforeach; ?>
@@ -98,6 +100,7 @@ $productChart = $dashboard->getProductQuantityChart();
                     <p>No sales data available</p>
                 </div>
             <?php endif; ?>
+            </div>
         </div>
     </div>
     
@@ -118,12 +121,12 @@ $productChart = $dashboard->getProductQuantityChart();
         data: {
             labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
             datasets: [{
-                label: 'Daily Sales',
-                data: [225, 175, 200, 250],
-                backgroundColor: '#95a5a6',
-                borderRadius: 4,
-                borderSkipped: false
-            }]
+                    label: 'Daily Sales',
+                    data: [225, 175, 200, 250],
+                    backgroundColor: ['#2d9cdb', '#f39c12', '#27ae60', '#9b59b6'],
+                    borderRadius: 8,
+                    borderSkipped: false
+                }]
         },
         options: {
             responsive: true,
@@ -151,8 +154,8 @@ $productChart = $dashboard->getProductQuantityChart();
             labels: ['CHOCO HAZELNUT', 'MATCHA', 'DOUBLE DUTCH', 'CHOCOLATE', 'ORIGINAL'],
             datasets: [{
                 data: [40, 30, 25, 35, 30],
-                backgroundColor: '#95a5a6',
-                borderRadius: 4
+                backgroundColor: ['#2d9cdb', '#f39c12', '#27ae60', '#e74c3c', '#9b59b6'],
+                borderRadius: 8
             }]
         },
         options: {
@@ -182,7 +185,7 @@ $productChart = $dashboard->getProductQuantityChart();
             labels: ['Hot Coffee', 'Iced Coffee', 'Milkshake', 'Iced Coffee'],
             datasets: [{
                 data: [35, 25, 20, 20],
-                backgroundColor: ['#7f8c8d', '#95a5a6', '#bdc3c7', '#d5dbdb'],
+                backgroundColor: ['#2d9cdb', '#f39c12', '#27ae60', '#9b59b6'],
                 borderWidth: 0
             }]
         },
