@@ -51,6 +51,15 @@ class Database {
         return $stmt->fetch();
     }
     
+    public function fetchValue($sql, $params = []) {
+        $stmt = $this->query($sql, $params);
+        $result = $stmt->fetch();
+        if ($result) {
+            return array_values($result)[0];
+        }
+        return null;
+    }
+    
     public function lastInsertId() {
         return $this->pdo->lastInsertId();
     }
