@@ -18,7 +18,7 @@ $page_title = $page_titles[$current_page] ?? 'DASHBOARD';
             </p>
         </div>
         <div style="color: #7f8c8d; font-size: 0.9rem;">
-            Welcome, <?php echo htmlspecialchars($user['full_name']); ?>
+            Welcome, <?php echo htmlspecialchars($currentUser['full_name']); ?>
         </div>
     </div>
 </div>
