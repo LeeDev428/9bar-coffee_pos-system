@@ -676,7 +676,7 @@ $categories = $db->fetchAll("SELECT * FROM categories ORDER BY category_name");
                 <?php foreach ($users as $user): ?>
                 <tr>
                     <td><strong><?php echo htmlspecialchars($user['username']); ?></strong></td>
-                    <td><?php echo htmlspecialchars($user['first_name'] . ' ' . $user['last_name']); ?></td>
+                    <td><?php echo htmlspecialchars(($user['first_name'] ?? '') . ' ' . ($user['last_name'] ?? '')); ?></td>
                     <td><?php echo htmlspecialchars($user['email']); ?></td>
                     <td><?php echo ucfirst($user['role']); ?></td>
                     <td>
@@ -685,7 +685,7 @@ $categories = $db->fetchAll("SELECT * FROM categories ORDER BY category_name");
                         </span>
                     </td>
                     <td>
-                        <button class="btn btn-warning btn-sm" onclick="editUser(<?php echo htmlspecialchars(json_encode($user)); ?>)">
+                        <button class="btn btn-warning btn-sm" onclick='editUser(<?php echo json_encode($user, JSON_HEX_APOS|JSON_HEX_QUOT); ?>)'>
                             <i class="fas fa-edit"></i>
                         </button>
                     </td>
