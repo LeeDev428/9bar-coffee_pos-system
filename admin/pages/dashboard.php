@@ -13,7 +13,7 @@ $productChart = $dashboard->getProductQuantityChart();
 
 <!-- Dashboard Stats -->
 <div class="stats-grid">
-    <div class="stat-card">
+    <div class="stat-card stat-card--green">
         <div class="stat-header">
             <h3 class="stat-title">Daily Sales</h3>
             <div class="stat-icon">
@@ -23,7 +23,7 @@ $productChart = $dashboard->getProductQuantityChart();
         <p class="stat-value"><?php echo formatCurrency($stats['daily_sales'] ?? 0); ?></p>
     </div>
     
-    <div class="stat-card">
+    <div class="stat-card stat-card--orange">
         <div class="stat-header">
             <h3 class="stat-title">Quantity Sold Today</h3>
             <div class="stat-icon">
@@ -33,7 +33,7 @@ $productChart = $dashboard->getProductQuantityChart();
         <p class="stat-value"><?php echo number_format($stats['quantity_sold_today'] ?? 0); ?></p>
     </div>
     
-    <div class="stat-card">
+    <div class="stat-card stat-card--purple">
         <div class="stat-header">
             <h3 class="stat-title">Total Product</h3>
             <div class="stat-icon">
@@ -43,9 +43,9 @@ $productChart = $dashboard->getProductQuantityChart();
         <p class="stat-value"><?php echo number_format($stats['total_products'] ?? 0); ?></p>
     </div>
     
-    <div class="stat-card">
+    <div class="stat-card stat-card--teal">
         <div class="stat-header">
-            <h3 class="stat-title">Critical Itasdadems</h3>
+            <h3 class="stat-title">Critical Items</h3>
             <div class="stat-icon">
                 <i class="fas fa-exclamation-triangle"></i>
             </div>
