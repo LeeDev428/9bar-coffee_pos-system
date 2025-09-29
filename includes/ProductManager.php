@@ -3,6 +3,10 @@
  * Product Manager Class
  * Handles product CRUD operations
  */
+
+// Prevent multiple inclusions
+if (!class_exists('ProductManager')) {
+    
 class ProductManager {
     private $db;
     
@@ -155,4 +159,6 @@ class ProductManager {
         ");
     }
 }
+
+} // End of class_exists check
 ?>
