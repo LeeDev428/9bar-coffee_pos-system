@@ -70,7 +70,7 @@ if (isset($_POST['receipt_data'])) {
     
     // Prepare receipt data
     $receiptData = [
-    'business_name' => $settings['business_name'] ?? '9BARS COFFEE',
+        'business_name' => $settings['business_name'] ?? '9BAR COFFEE',
         'business_address' => $settings['business_address'] ?? '',
         'business_phone' => $settings['business_phone'] ?? '',
         'sale_id' => $sale['sale_id'],
@@ -85,7 +85,7 @@ if (isset($_POST['receipt_data'])) {
         'payment_method' => $sale['payment_method'],
         'amount_paid' => $sale['total_amount'], // Assuming full payment
         'change_amount' => 0,
-    'receipt_header' => $settings['receipt_header'] ?? 'Welcome to 9BARS COFFEE!',
+        'receipt_header' => $settings['receipt_header'] ?? 'Welcome to 9Bar Coffee!',
         'receipt_footer' => $settings['receipt_footer'] ?? 'Thank you for your business!'
     ];
     
