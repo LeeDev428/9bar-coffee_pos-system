@@ -171,7 +171,7 @@ if ($_POST) {
                     <p style="color: #95a5a6; font-size: 0.9rem;">
                         Default Login:<br>
                         <strong>Username:</strong> admin | <strong>Password:</strong> admin123<br>
-                        <strong>Username:</strong> staff1 | <strong>Password:</strong> staff123
+                        <strong>Username:</strong> staff1 | <strong>Password:</strong> admin123
                     </p>
                 </div>
             </form>
