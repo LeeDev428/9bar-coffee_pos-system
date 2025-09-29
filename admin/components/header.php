@@ -2,14 +2,15 @@
 // Admin Header Component
 $page_titles = [
     'dashboard' => 'DASHBOARD',
-    'products' => 'MANAGE PRODUCT',
-    'inventory' => 'INVENTORY',
-    'records' => 'RECORD',
-    'settings' => 'SETTING'
+    'products' => 'MANAGE PRODUCTS',
+    'inventory' => 'INVENTORY MANAGEMENT',
+    'records' => 'RECORDS',
+    'sales' => 'SALES',
+    'settings' => 'SETTINGS'
 ];
 
 $current_page = basename($_SERVER['PHP_SELF'], '.php');
-$page_title = $page_titles[$current_page] ?? 'DASHBOARD';
+$page_title = $page_titles[$current_page] ?? ($page_title ?? 'DASHBOARD');
 ?>
 <div class="header">
     <div style="display: flex; justify-content: space-between; align-items: center;">
