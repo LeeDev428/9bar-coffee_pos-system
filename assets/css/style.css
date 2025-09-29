@@ -357,18 +357,23 @@ body {
 /* Dashboard Cards and Stats */
 .stats-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    grid-template-columns: repeat(4, 1fr);
     gap: 20px;
     margin-bottom: 30px;
 }
 
 .stat-card {
     background: var(--text-light);
-    padding: 25px;
-    border-radius: 12px;
-    box-shadow: 0 4px 12px var(--shadow-light);
-    border-left: 4px solid var(--accent-color);
-    transition: transform 0.2s ease;
+    padding: 18px 22px;
+    border-radius: 8px;
+    box-shadow: 0 3px 8px var(--shadow-light);
+    border-left: none;
+    transition: transform 0.15s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 90px;
 }
 
 /* Colored stat card variants */
@@ -401,8 +406,8 @@ body {
 }
 
 .stat-icon {
-    width: 48px;
-    height: 48px;
+    width: 46px;
+    height: 46px;
     background-color: rgba(255,255,255,0.12);
     border-radius: 50%;
     display: flex;
@@ -413,11 +418,25 @@ body {
 }
 
 .stat-value {
-    font-size: 1.6rem;
-    font-weight: 700;
+    font-size: 1.5rem;
+    font-weight: 800;
     color: #ffffff;
-    margin: 10px 0 0 0;
-    line-height: 1.1;
+    margin: 8px 0 0 0;
+    line-height: 1.05;
+}
+
+/* Make the stat-value slightly larger on wider screens */
+@media (min-width: 1200px) {
+    .stat-value { font-size: 1.8rem; }
+}
+
+/* Responsive: collapse to 2 columns on medium screens and 1 on small */
+@media (max-width: 1024px) {
+    .stats-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 600px) {
+    .stats-grid { grid-template-columns: 1fr; }
 }
 
 /* Make chart titles left aligned like screenshot */
@@ -437,16 +456,20 @@ body {
 
 .chart-container {
     background: var(--text-light);
-    padding: 25px;
-    border-radius: 12px;
-    box-shadow: 0 4px 12px var(--shadow-light);
+    padding: 18px 20px;
+    border-radius: 8px;
+    box-shadow: 0 3px 8px var(--shadow-light);
+    display: flex;
+    flex-direction: column;
 }
 
 .chart-title {
-    font-size: 1.2rem;
+    font-size: 1rem;
     color: var(--text-dark);
-    margin-bottom: 20px;
-    text-align: center;
+    margin: 0 0 12px 0;
+    text-transform: uppercase;
+    font-weight: 700;
+    letter-spacing: 0.6px;
 }
 
 .chart-placeholder {
@@ -461,12 +484,60 @@ body {
     font-style: italic;
 }
 
+/* Ensure chart canvases fill available area */
+.chart-container canvas { width: 100% !important; height: 100% !important; display: block; }
+
 /* Product Lists and Tables */
 .product-list {
     background: var(--text-light);
     border-radius: 12px;
     box-shadow: 0 4px 12px var(--shadow-light);
     overflow: hidden;
+}
+
+/* Best Selling list inside chart-container */
+.best-selling-list {
+    padding: 18px 20px;
+}
+
+.best-item {
+    padding: 10px 0;
+    border-bottom: 1px solid #f0f2f3;
+}
+.best-item:last-child { border-bottom: none; }
+
+.best-item .item-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+.best-item .item-name {
+    font-size: 0.95rem;
+    color: #2c3e50;
+}
+.best-item .item-count {
+    font-size: 0.85rem;
+    color: #95a5a6;
+}
+
+.best-item .progress {
+    width: 100%;
+    height: 8px;
+    background: #ecf0f1;
+    border-radius: 6px;
+    overflow: hidden;
+}
+.best-item .progress-bar {
+    height: 100%;
+    background: var(--accent-color);
+    border-radius: 6px 0 0 6px;
+}
+
+/* Slightly reduce padding for small containers */
+@media (max-width: 600px) {
+    .best-selling-list { padding: 12px; }
+    .best-item { padding: 8px 0; }
 }
 
 .list-header {
