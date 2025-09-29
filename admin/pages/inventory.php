@@ -400,20 +400,20 @@ tbody tr:hover {
 
 <!-- Inventory Statistics -->
 <div class="inventory-stats">
-    <div class="stat-card">
-        <div class="stat-value stat-info"><?php echo $totalProducts; ?></div>
+    <div class="stat-card stat-card--info">
+        <div class="stat-value"><?php echo $totalProducts; ?></div>
         <div class="stat-label">Total Products</div>
     </div>
-    <div class="stat-card">
-        <div class="stat-value stat-low"><?php echo $lowStockCount; ?></div>
+    <div class="stat-card stat-card--low">
+        <div class="stat-value"><?php echo $lowStockCount; ?></div>
         <div class="stat-label">Low Stock Items</div>
     </div>
-    <div class="stat-card">
-        <div class="stat-value stat-warning"><?php echo $reorderCount; ?></div>
+    <div class="stat-card stat-card--warning">
+        <div class="stat-value"><?php echo $reorderCount; ?></div>
         <div class="stat-label">Need Reorder</div>
     </div>
-    <div class="stat-card">
-        <div class="stat-value stat-success">₱<?php echo number_format($totalValue, 2); ?></div>
+    <div class="stat-card stat-card--success">
+        <div class="stat-value">₱<?php echo number_format($totalValue, 2); ?></div>
         <div class="stat-label">Total Inventory Value</div>
     </div>
 </div>
