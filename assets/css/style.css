@@ -314,6 +314,11 @@ body {
     border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
+.dashboard-container {
+    display: flex;
+    min-height: 100vh;
+}
+
 .main-content {
     flex: 1;
     display: flex;
@@ -380,37 +385,43 @@ body {
 
 .stat-header {
     display: flex;
-    justify-content: space-between;
+    flex-direction: column;
+    justify-content: center;
     align-items: center;
-    margin-bottom: 15px;
+    margin-bottom: 10px;
 }
 
 .stat-title {
     font-size: 0.9rem;
-    color: var(--text-muted);
+    color: rgba(255,255,255,0.95);
     text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin: 0;
+    letter-spacing: 0.8px;
+    margin: 8px 0 0 0;
+    font-weight: 600;
 }
 
 .stat-icon {
-    width: 40px;
-    height: 40px;
-    background-color: rgba(230, 126, 34, 0.1);
+    width: 48px;
+    height: 48px;
+    background-color: rgba(255,255,255,0.12);
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: var(--accent-color);
+    color: #ffffff;
+    font-size: 1.1rem;
 }
 
 .stat-value {
-    font-size: 2.5rem;
-    font-weight: bold;
-    color: var(--text-dark);
-    margin: 0;
-    line-height: 1;
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: #ffffff;
+    margin: 10px 0 0 0;
+    line-height: 1.1;
 }
+
+/* Make chart titles left aligned like screenshot */
+.chart-title { text-align: left; }
 
 /* Charts and Analytics */
 .analytics-grid {
