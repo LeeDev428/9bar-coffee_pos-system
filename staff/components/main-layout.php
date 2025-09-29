@@ -58,7 +58,7 @@ $currentUser = $auth->getCurrentUser();
 
         /* Sidebar */
         .sidebar {
-            width: 180px;
+            width: 240px;
             height: 100vh;
             background: linear-gradient(135deg,#3b2f2b 0%,#5a3f36 100%); /* coffee gradient */
             position: fixed;
@@ -139,7 +139,7 @@ $currentUser = $auth->getCurrentUser();
 
         /* Main Content */
         .main-content {
-            margin-left: 180px;
+            margin-left: 240px;
             min-height: 100vh;
             background: #f5f5f5;
         }
