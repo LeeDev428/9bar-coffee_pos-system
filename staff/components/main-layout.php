@@ -69,7 +69,7 @@ $currentUser = $auth->getCurrentUser();
         }
 
         .sidebar-user {
-            padding: 20px 15px;
+            padding: 15px 25px;
             text-align: center;
             border-bottom: 1px solid rgba(255,255,255,0.1);
         }
