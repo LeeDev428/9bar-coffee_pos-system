@@ -1,7 +1,7 @@
 <?php
 // Admin Inventory Management Page
 $page_title = 'INVENTORY MANAGEMENT';
-include '../components/layout-start.php';
+include '../components/main-layout.php';
 
 // Handle form submissions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
