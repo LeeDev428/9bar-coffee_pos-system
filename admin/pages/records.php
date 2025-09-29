@@ -1,7 +1,7 @@
 <?php
-// Admin Records & Reports Page
-$page_title = 'RECORDS & REPORTS';
-include '../components/layout-start.php';
+// Admin Records Management Page
+$page_title = 'RECORDS';
+include '../components/main-layout.php';
 
 // Get date filters from request
 $startDate = $_GET['start_date'] ?? date('Y-m-d', strtotime('-30 days'));
