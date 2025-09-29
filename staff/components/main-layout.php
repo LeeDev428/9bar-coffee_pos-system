@@ -38,11 +38,9 @@ $currentUser = $auth->getCurrentUser();
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo isset($page_title) ? $page_title . ' - ' : ''; ?>9Bar Coffee Staff</title>
     
-    <!-- Bootstrap CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Bootstrap Icons -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
-    <!-- Chart.js -->
+    <!-- CSS Assets -->
+    <link rel="stylesheet" href="../../assets/css/style.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
     <style>
@@ -169,27 +167,6 @@ $currentUser = $auth->getCurrentUser();
             margin: 3px 0 0 0;
         }
 
-        .welcome-section {
-            background: #f6eadf;
-            border-radius: 8px;
-            padding: 15px 20px;
-            text-align: left;
-        }
-
-        .welcome-title {
-            font-size: 14px;
-            color: #3b2f2b;
-            margin-bottom: 3px;
-        }
-
-        .welcome-subtitle {
-            font-size: 16px;
-            font-weight: 600;
-            color: #3b2f2b;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
         /* Content Area */
         .content {
             padding: 0 25px 25px 25px;
@@ -235,189 +212,18 @@ $currentUser = $auth->getCurrentUser();
             font-weight: 700;
             line-height: 1;
         }
-
-        /* POS Specific Styles */
-        .pos-container {
-            display: grid;
-            grid-template-columns: 1fr 400px;
-            gap: 20px;
-            height: calc(100vh - 150px);
-        }
-
-        .products-section {
-            background: #fffdfa;
-            border-radius: 8px;
-            padding: 20px;
-            overflow-y: auto;
-        }
-
-        .cart-section {
-            background: white;
-            border-radius: 8px;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .product-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-            gap: 15px;
-            margin-top: 20px;
-        }
-
-        .product-card {
-            background: #f8f9fa;
-            border: 1px solid #dee2e6;
-            border-radius: 8px;
-            padding: 15px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-
-        .product-card:hover {
-            background: #f6e9dd;
-            border-color: #c79a6e;
-        }
-
-        .product-name {
-            font-size: 14px;
-            font-weight: 600;
-            margin-bottom: 5px;
-        }
-
-        .product-price {
-            font-size: 16px;
-            color: #3b2f2b;
-            font-weight: bold;
-        }
-
-        .cart-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 10px 0;
-            border-bottom: 1px solid #eee;
-        }
-
-        .cart-total {
-            background: #5a3f36;
-            color: white;
-            padding: 15px;
-            border-radius: 8px;
-            margin-top: auto;
-        }
-
-        /* Table Styles */
-        .table-responsive {
-            background: white;
-            border-radius: 8px;
-            padding: 20px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }
-
-        .table th {
-            background-color: #5a3f36;
-            color: white;
-            font-size: 12px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .btn-primary {
-            background-color: #5a3f36;
-            border-color: #5a3f36;
-        }
-
-        .btn-primary:hover {
-            background-color: #46312d;
-            border-color: #46312d;
-        }
-
-        /* Responsive */
-        @media (max-width: 1200px) {
-            .pos-container {
-                grid-template-columns: 1fr;
-                height: auto;
-            }
-            
-            .product-grid {
-                grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-            }
-        }
-
-        @media (max-width: 768px) {
-            .sidebar {
-                transform: translateX(-100%);
-                transition: transform 0.3s ease;
-            }
-            
-            .main-content {
-                margin-left: 0;
-            }
-            
-            .stats-grid {
-                grid-template-columns: 1fr;
-            }
-        }
     </style>
 </head>
 <body>
     <!-- Sidebar -->
-    <div class="sidebar">
-        <div class="sidebar-user">
-            <div class="user-avatar">
-                <i class="bi bi-person-fill"></i>
-            </div>
-            <div class="user-info">
-                <h4><?php echo htmlspecialchars($currentUser['full_name']); ?></h4>
-                <p><?php echo ucfirst($currentUser['role']); ?></p>
-            </div>
-        </div>
-        
-        <nav class="sidebar-nav">
-            <?php
-            $current_page = basename($_SERVER['PHP_SELF']);
-            $nav_items = [
-                ['icon' => 'bi-speedometer2', 'text' => 'DASHBOARD', 'page' => 'dashboard.php'],
-                ['icon' => 'bi-calculator', 'text' => 'POINT OF SALE', 'page' => 'pos.php'],
-                ['icon' => 'bi-boxes', 'text' => 'INVENTORY', 'page' => 'inventory.php']
-            ];
-            
-            foreach ($nav_items as $item) {
-                $active = ($current_page == $item['page']) ? 'active' : '';
-                echo "<a href='{$item['page']}' class='nav-item {$active}'>";
-                echo "<i class='bi {$item['icon']}'></i>";
-                echo "<span>{$item['text']}</span>";
-                echo "</a>";
-            }
-            ?>
-        </nav>
-        
-        <div class="sidebar-footer">
-            <a href="dashboard.php?action=logout" class="nav-item" style="color: #e74c3c;">
-                <i class="bi bi-box-arrow-right"></i>
-                <span>LOG OUT</span>
-            </a>
-        </div>
-    </div>
+    <?php include 'sidebar.php'; ?>
 
     <!-- Main Content -->
     <div class="main-content">
         <!-- Header -->
-        <div class="header">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <div>
-                    <h1 class="header-title"><?php echo isset($page_title) ? $page_title : 'DASHBOARD'; ?></h1>
-                    <p class="header-subtitle"><?php echo date('D, M-d-Y h:i:s a'); ?></p>
-                </div>
-                <div class="welcome-section">
-                    <div class="welcome-title">Hi <strong><?php echo htmlspecialchars($currentUser['username']); ?></strong></div>
-                    <div class="welcome-subtitle">WELCOME BACK</div>
-                </div>
-            </div>
-        </div>
+        <?php include 'header.php'; ?>
 
         <!-- Content Area -->
         <div class="content">
+            <?php displayAlert(); ?>
+            <!-- Page content will be included here -->
