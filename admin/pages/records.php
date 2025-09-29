@@ -77,7 +77,7 @@ $staffPerformance = $db->fetchAll("
 // Recent Transactions
 $recentTransactions = $db->fetchAll("
     SELECT s.sale_id, s.sale_date, s.total_amount, s.payment_method,
-           u.username, s.customer_name,
+           u.username,
            COUNT(si.product_id) as item_count
     FROM sales s
     JOIN users u ON s.user_id = u.user_id
@@ -494,7 +494,7 @@ $avgTransaction = $totalTransactions > 0 ? $totalSales / $totalTransactions : 0;
                 <div class="transaction-item">
                     <div class="transaction-info">
                         <div><strong>Sale #<?php echo $transaction['sale_id']; ?></strong></div>
-                        <div><?php echo htmlspecialchars($transaction['customer_name'] ?: 'Walk-in'); ?></div>
+                        <div><?php echo htmlspecialchars('Walk-in Customer'); ?></div>
                         <div class="transaction-date">
                             <?php echo date('M j, H:i', strtotime($transaction['sale_date'])); ?> by <?php echo htmlspecialchars($transaction['username']); ?>
                         </div>
@@ -670,7 +670,7 @@ function exportReport(type) {
             '<?php echo $transaction['sale_id']; ?>',
             '<?php echo date('Y-m-d H:i:s', strtotime($transaction['sale_date'])); ?>',
             '<?php echo htmlspecialchars($transaction['username']); ?>',
-            '<?php echo htmlspecialchars($transaction['customer_name'] ?: 'Walk-in'); ?>',
+            '<?php echo htmlspecialchars('Walk-in Customer'); ?>',
             '<?php echo $transaction['item_count']; ?>',
             '<?php echo ucfirst($transaction['payment_method']); ?>',
             '<?php echo $transaction['total_amount']; ?>'
