@@ -1,7 +1,7 @@
 <?php
 // Admin Products Management Page
 $page_title = 'MANAGE PRODUCTS';
-include '../components/layout-start.php';
+include '../components/main-layout.php';
 
 // Initialize managers
 $productManager = new ProductManager($db);
