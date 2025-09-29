@@ -52,8 +52,8 @@ body {
 }
 
 .landing-logo {
-    width: 150px;
-    height: 150px;
+    width: 220px;
+    height: 220px;
     margin: 0 auto 30px;
     background-color: rgba(255, 255, 255, 0.1);
     border-radius: 50%;
@@ -64,8 +64,8 @@ body {
 }
 
 .landing-logo img {
-    width: 100px;
-    height: 100px;
+    width: 150px;
+    height: 150px;
     object-fit: contain;
 }
 
@@ -137,14 +137,14 @@ body {
 }
 
 .login-logo {
-    width: 120px;
-    height: 120px;
+    width: 160px;
+    height: 160px;
     margin-bottom: 20px;
 }
 
 .login-logo img {
-    width: 100%;
-    height: 100%;
+    width: 130px;
+    height: 130px;
     object-fit: contain;
 }
 
