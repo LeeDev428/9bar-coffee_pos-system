@@ -17,8 +17,8 @@
             </div>
             
             <h1 class="landing-title">
-                9BARS<br>
-                COFFEE
+                BREW<br>
+                TOPIA
             </h1>
             
             <p class="landing-subtitle">
