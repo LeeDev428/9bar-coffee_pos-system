@@ -159,7 +159,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 
                 // Prepare receipt data
                 $receiptData = [
-                    'business_name' => $businessSettings['business_name'] ?? '9BARS COFFEE',
+                    'business_name' => $businessSettings['business_name'] ?? '9BAR COFFEE',
                     'business_address' => $businessSettings['business_address'] ?? '',
                     'business_phone' => $businessSettings['business_phone'] ?? '',
                     'sale_id' => $saleId,
@@ -174,7 +174,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     'payment_method' => $paymentMethod,
                     'amount_paid' => $receivedAmount,
                     'change_amount' => $change,
-                    'receipt_header' => $businessSettings['receipt_header'] ?? 'Welcome to 9BARS COFFEE!',
+                    'receipt_header' => $businessSettings['receipt_header'] ?? 'Welcome to 9Bar Coffee!',
                     'receipt_footer' => $businessSettings['receipt_footer'] ?? 'Thank you for your business!'
                 ];
                 
@@ -285,7 +285,7 @@ $grandTotal = $cartTotal + $taxAmount;
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Point of Sale - 9BARS COFFEE POS</title>
+    <title>Point of Sale - 9Bar POS</title>
     <link rel="stylesheet" href="../../assets/css/style.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
