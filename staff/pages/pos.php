@@ -8,6 +8,11 @@ require_once '../../includes/ThermalPrinter.php';
 $productManager = new ProductManager($db);
 $salesManager = new SalesManager($db);
 
+// Get current user from component system
+$user = $currentUser;
+$productManager = new ProductManager($db);
+$salesManager = new SalesManager($db);
+
 // Get all active products for POS
 $products = $productManager->getAllProducts();
 
@@ -912,5 +917,4 @@ $grandTotal = $cartTotal + $taxAmount;
             });
         }
     </script>
-</body>
-</html>
+<?php include '../components/layout-end.php'; ?>
