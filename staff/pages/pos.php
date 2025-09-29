@@ -1,21 +1,8 @@
 <?php
 // Staff POS (Point of Sale) System
-require_once '../../includes/database.php';
-require_once '../../includes/auth.php';
-require_once '../../includes/functions.php';
+$page_title = 'POINT OF SALE';
+include '../components/main-layout.php';
 require_once '../../includes/ThermalPrinter.php';
-
-// Initialize database and auth
-try {
-    $db = new Database();
-    $auth = new Auth($db);
-} catch (Exception $e) {
-    die("Database connection failed: " . $e->getMessage());
-}
-
-// Require login (staff or admin)
-$auth->requireLogin();
-$user = $auth->getCurrentUser();
 
 // Initialize managers
 $productManager = new ProductManager($db);
