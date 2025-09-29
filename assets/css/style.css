@@ -382,6 +382,15 @@ body {
 .stat-card--purple { background: linear-gradient(135deg, #8e44ad 0%, #9b59b6 100%); color: #fff; border-left-color: transparent; }
 .stat-card--teal { background: linear-gradient(135deg, #1abc9c 0%, #16a085 100%); color: #fff; border-left-color: transparent; }
 
+/* Inventory stat variants */
+.inventory-stats .stat-card.stat-card--info { background: linear-gradient(135deg, #3498db 0%, #2d9cdb 100%); color: #fff; }
+.inventory-stats .stat-card.stat-card--low { background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%); color: #fff; }
+.inventory-stats .stat-card.stat-card--warning { background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%); color: #fff; }
+.inventory-stats .stat-card.stat-card--success { background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%); color: #fff; }
+
+.inventory-stats .stat-card .stat-label { color: rgba(255,255,255,0.9); }
+.inventory-stats .stat-card .stat-value { color: #fff; }
+
 .stats-grid .stat-card .stat-value { color: #fff; }
 
 /* Inventory and other white cards: let their .stat-value use their own color classes or inherit */
@@ -421,6 +430,11 @@ body {
     justify-content: center;
     color: #ffffff;
     font-size: 1.1rem;
+}
+
+.stat-icon .currency-sign {
+    font-size: 1.3rem;
+    font-weight: 700;
 }
 
 .stat-value {
