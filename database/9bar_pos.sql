@@ -1,4 +1,4 @@
--- BrewTopia POS System Database Schema
+-- 9BARS COFFEE POS System Database Schema
 -- Created for Laragon/HeidiSQL
 -- Date: September 17, 2025
 
@@ -239,10 +239,10 @@ INSERT INTO `sale_items` (`sale_id`, `product_id`, `quantity`, `unit_price`, `to
 
 -- Insert Default System Settings
 INSERT INTO `settings` (`setting_key`, `setting_value`, `setting_type`, `description`) VALUES
-('company_name', 'BrewTopia', 'string', 'Company name displayed on receipts and reports'),
+('company_name', '9BARS COFFEE', 'string', 'Company name displayed on receipts and reports'),
 ('tax_rate', '12.00', 'number', 'Default tax rate percentage'),
 ('currency', 'PHP', 'string', 'Default currency'),
-('receipt_footer', 'Thank you for visiting BrewTopia!', 'string', 'Footer message on receipts'),
+('receipt_footer', 'Thank you for visiting 9BARS COFFEE!', 'string', 'Footer message on receipts'),
 ('low_stock_alert', '5', 'number', 'Minimum stock level for alerts'),
 ('backup_frequency', 'daily', 'string', 'Database backup frequency');
 
@@ -412,13 +412,13 @@ CREATE TABLE `settings` (
 
 -- Insert default settings
 INSERT INTO `settings` (`setting_key`, `setting_value`, `description`) VALUES
-('business_name', '9Bar Coffee', 'Business name displayed on receipts and reports'),
+('business_name', '9BARS COFFEE', 'Business name displayed on receipts and reports'),
 ('business_address', 'Balamban, Cebu, Philippines', 'Business address'),
 ('business_phone', '(032) 123-4567', 'Business phone number'),
 ('business_email', 'info@9barcoffee.com', 'Business email address'),
 ('tax_rate', '12.00', 'Tax rate percentage'),
 ('currency', 'PHP', 'Currency code'),
-('receipt_header', 'Welcome to 9Bar Coffee!\nThank you for your visit!', 'Receipt header text'),
+('receipt_header', 'Welcome to 9BARS COFFEE!\nThank you for your visit!', 'Receipt header text'),
 ('receipt_footer', 'Have a great day!\nPlease come again!', 'Receipt footer text'),
 ('auto_print_receipt', '0', 'Auto print receipt after sale'),
 ('allow_discounts', '1', 'Allow discounts in POS'),
