@@ -1,7 +1,7 @@
 <?php
 // Admin Settings Page
-$page_title = 'SYSTEM SETTINGS';
-include '../components/layout-start.php';
+$page_title = 'SETTINGS';
+include '../components/main-layout.php';
 
 // Handle form submissions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -408,7 +408,7 @@ $categories = $db->fetchAll("SELECT * FROM categories ORDER BY category_name");
                 <div class="form-group">
                     <label class="form-label">Business Name</label>
                     <input type="text" name="business_name" class="form-control" 
-                               value="<?php echo htmlspecialchars($businessSettings['business_name'] ?? '9BARS COFFEE'); ?>" required>
+                           value="<?php echo htmlspecialchars($businessSettings['business_name'] ?? '9Bar Coffee'); ?>" required>
                 </div>
                 
                 <div class="form-group">
@@ -464,7 +464,7 @@ $categories = $db->fetchAll("SELECT * FROM categories ORDER BY category_name");
             
             <div class="form-group">
                 <label class="form-label">Receipt Header</label>
-                <textarea name="receipt_header" class="form-control" rows="3" placeholder="Text that appears at the top of receipts..."><?php echo htmlspecialchars($posSettings['receipt_header'] ?? 'Welcome to 9BARS COFFEE!\nThank you for your visit!'); ?></textarea>
+                <textarea name="receipt_header" class="form-control" rows="3" placeholder="Text that appears at the top of receipts..."><?php echo htmlspecialchars($posSettings['receipt_header'] ?? 'Welcome to 9Bar Coffee!\nThank you for your visit!'); ?></textarea>
             </div>
             
             <div class="form-group">
