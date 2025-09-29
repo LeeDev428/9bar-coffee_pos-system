@@ -3,6 +3,9 @@
 $page_title = 'INVENTORY';
 include '../components/main-layout.php';
 
+// Get current user from component system
+$user = $currentUser;
+
 // Get all products with inventory
 $sql = "SELECT p.product_id, p.product_name, p.price, p.barcode, p.status,
                c.category_name,
@@ -512,5 +515,4 @@ if (isset($_GET['action']) && $_GET['action'] === 'logout') {
             console.log('Auto-refresh inventory data');
         }, 30000);
     </script>
-</body>
-</html>
+<?php include '../components/layout-end.php'; ?>
