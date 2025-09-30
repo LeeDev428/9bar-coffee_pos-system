@@ -357,34 +357,147 @@ $grandTotal = $cartTotal + $taxAmount;
 </div>
 
 <script>
-let cart = [];
+// Cart stored in localStorage under 'pos_cart'
+let cart = JSON.parse(localStorage.getItem('pos_cart') || '[]');
+
+// Read product data from the DOM based on productId
+function getProductData(productId) {
+    const card = document.querySelector('.product-card[data-id="' + productId + '"]');
+    if (!card) return null;
+    const name = card.querySelector('.product-name').innerText.trim();
+    const priceText = card.querySelector('.product-price').innerText.replace(/[^0-9.]/g, '');
+    const price = parseFloat(priceText) || 0;
+    return { product_id: productId, product_name: name, price };
+}
+
+function saveCart() {
+    localStorage.setItem('pos_cart', JSON.stringify(cart));
+}
 
 function addToCart(productId) {
-    // Add to cart logic
-    console.log('Added product', productId, 'to cart');
+    const pid = String(productId);
+    const product = getProductData(pid);
+    if (!product) return;
+
+    // If product exists in cart, increment quantity
+    const existing = cart.find(i => String(i.product_id) === pid);
+    if (existing) {
+        existing.quantity += 1;
+    } else {
+        cart.push({ ...product, quantity: 1 });
+    }
+
+    saveCart();
+    updateCartDisplay();
 }
 
 function removeFromCart(index) {
+    if (index < 0 || index >= cart.length) return;
     cart.splice(index, 1);
+    saveCart();
+    updateCartDisplay();
+}
+
+function changeQuantity(index, delta) {
+    if (index < 0 || index >= cart.length) return;
+    cart[index].quantity = Math.max(1, cart[index].quantity + delta);
+    saveCart();
     updateCartDisplay();
 }
 
 function updateCartDisplay() {
-    // Update cart display logic
+    const container = document.getElementById('cartItems');
+    container.innerHTML = '';
+
+    if (!cart.length) {
+        container.innerHTML = '<div style="text-align: center; opacity: 0.6; padding: 40px 0;">No items in cart</div>';
+        document.getElementById('subtotal').innerText = '₱0.00';
+        document.getElementById('vat').innerText = '₱0.00';
+        document.getElementById('total').innerText = '₱0.00';
+        return;
+    }
+
+    let subtotal = 0;
+    cart.forEach((item, idx) => {
+        const row = document.createElement('div');
+        row.className = 'cart-item';
+        const itemTotal = item.price * item.quantity;
+        subtotal += itemTotal;
+
+        row.innerHTML = `
+            <div style="flex:1">
+                <div style="font-weight:600">${escapeHtml(item.product_name)}</div>
+                <div style="font-size:12px; opacity:0.8">₱${numberFormat(item.price)} x ${item.quantity} = ₱${numberFormat(itemTotal)}</div>
+            </div>
+            <div style="display:flex; gap:8px; align-items:center">
+                <button class="btn" onclick="changeQuantity(${idx}, -1)">-</button>
+                <button class="btn" onclick="changeQuantity(${idx}, 1)">+</button>
+                <button class="btn btn-danger" onclick="removeFromCart(${idx})">Remove</button>
+            </div>
+        `;
+
+        container.appendChild(row);
+    });
+
+    const vat = subtotal * 0.12;
+    const total = subtotal + vat;
+
+    document.getElementById('subtotal').innerText = '₱' + numberFormat(subtotal);
+    document.getElementById('vat').innerText = '₱' + numberFormat(vat);
+    document.getElementById('total').innerText = '₱' + numberFormat(total);
+}
+
+function numberFormat(value) {
+    return Number(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function escapeHtml(str) {
+    return String(str).replace(/[&<>"'`]/g, function (s) {
+        return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;', '`': '&#96;' })[s];
+    });
 }
 
 function filterProducts(categoryId) {
-    // Filter products logic
+    const cards = document.querySelectorAll('.product-card');
+    if (categoryId === 'all') {
+        cards.forEach(c => c.style.display = 'block');
+        return;
+    }
+    cards.forEach(c => {
+        if (c.dataset.category === String(categoryId)) c.style.display = 'block'; else c.style.display = 'none';
+    });
 }
 
 function processPayment() {
-    // Process payment logic
+    // Placeholder - actual implementation should POST to server to create sale
+    if (!cart.length) { alert('Cart is empty'); return; }
+    const receivedText = document.getElementById('receivedAmount').value || '0';
+    const received = parseFloat(receivedText) || 0;
+    const totalText = document.getElementById('total').innerText.replace(/[^0-9.]/g, '');
+    const total = parseFloat(totalText) || 0;
+    if (received < total) { alert('Received amount is less than total'); return; }
+
+    // For now just clear cart and show success
+    alert('Payment processed. Change: ₱' + numberFormat(received - total));
+    clearCart();
 }
 
 function clearCart() {
     cart = [];
+    saveCart();
     updateCartDisplay();
 }
+
+// Attach data-id and data-category attributes to product cards for easier lookup
+document.querySelectorAll('.product-card').forEach(function(card){
+    const idMatch = card.getAttribute('onclick') && card.getAttribute('onclick').match(/addToCart\((\d+)\)/);
+    if (idMatch) card.dataset.id = idMatch[1];
+    // If product had category info in dataset, set it; otherwise default to empty
+    // Optionally you can add data-category to product-card server-side for better filtering
+});
+
+// Initialize UI
+updateCartDisplay();
 </script>
 
 <?php include '../components/layout-end.php'; ?>
