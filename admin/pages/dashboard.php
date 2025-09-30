@@ -114,65 +114,71 @@ $productChart = $dashboard->getProductQuantityChart();
 </div>
 
 <script>
+    // Prepare PHP data for charts
+    <?php
+    // Sales chart: labels (dates) and revenues
+    $salesLabels = array_map(function($r) { return date('M d', strtotime($r['date'])); }, $salesChart);
+    $salesValues = array_map(function($r) { return (float)($r['revenue'] ?? 0); }, $salesChart);
+
+    // Product quantity chart: labels and totals
+    $productLabels = array_map(function($r) { return $r['product_name']; }, $productChart);
+    $productValues = array_map(function($r) { return (int)($r['total_sold'] ?? 0); }, $productChart);
+    ?>
     // Sales Chart (Vertical Bar Chart like in screenshot)
     const salesCtx = document.getElementById('salesChart').getContext('2d');
+    const salesData = {
+        labels: <?php echo json_encode(array_values($salesLabels)); ?>,
+        datasets: [{
+            label: 'Daily Sales',
+            data: <?php echo json_encode(array_values($salesValues)); ?>,
+            backgroundColor: (function(count){
+                const palette = ['#2d9cdb', '#f39c12', '#27ae60', '#9b59b6', '#e74c3c', '#16a085'];
+                return Array.from({length: count}).map((_,i)=>palette[i % palette.length]);
+            })(<?php echo max(1, count($salesValues)); ?>),
+            borderRadius: 8,
+            borderSkipped: false
+        }]
+    };
+
     const salesChart = new Chart(salesCtx, {
         type: 'bar',
-        data: {
-            labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
-            datasets: [{
-                    label: 'Daily Sales',
-                    data: [225, 175, 200, 250],
-                    backgroundColor: ['#2d9cdb', '#f39c12', '#27ae60', '#9b59b6'],
-                    borderRadius: 8,
-                    borderSkipped: false
-                }]
-        },
+        data: salesData,
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            plugins: {
-                legend: { display: false }
-            },
+            plugins: { legend: { display: false } },
             scales: {
-                y: { 
-                    beginAtZero: true,
-                    max: 300,
-                    grid: { color: '#e0e0e0' },
-                    ticks: { stepSize: 50 }
-                },
+                y: { beginAtZero: true, grid: { color: '#e0e0e0' } },
                 x: { grid: { display: false } }
             }
         }
     });
     
-    // Product Quantity Chart (Horizontal Bar Chart like in screenshot)
+    // Product Quantity Chart (Horizontal Bar Chart wired to DB data)
     const productCtx = document.getElementById('productChart').getContext('2d');
+    const productData = {
+        labels: <?php echo json_encode(array_values($productLabels)); ?>,
+        datasets: [{
+            data: <?php echo json_encode(array_values($productValues)); ?>,
+            backgroundColor: (function(count){
+                const palette = ['#2d9cdb', '#f39c12', '#27ae60', '#e74c3c', '#9b59b6', '#16a085'];
+                return Array.from({length: count}).map((_,i)=>palette[i % palette.length]);
+            })(<?php echo max(1, count($productValues)); ?>),
+            borderRadius: 8
+        }]
+    };
+
     const productChart = new Chart(productCtx, {
         type: 'bar',
-        data: {
-            labels: ['CHOCO HAZELNUT', 'MATCHA', 'DOUBLE DUTCH', 'CHOCOLATE', 'ORIGINAL'],
-            datasets: [{
-                data: [40, 30, 25, 35, 30],
-                backgroundColor: ['#2d9cdb', '#f39c12', '#27ae60', '#e74c3c', '#9b59b6'],
-                borderRadius: 8
-            }]
-        },
+        data: productData,
         options: {
             indexAxis: 'y',
             responsive: true,
             maintainAspectRatio: false,
             plugins: { legend: { display: false } },
             scales: {
-                x: { 
-                    beginAtZero: true,
-                    max: 50,
-                    grid: { color: '#e0e0e0' }
-                },
-                y: { 
-                    grid: { display: false },
-                    ticks: { font: { size: 11 } }
-                }
+                x: { beginAtZero: true, grid: { color: '#e0e0e0' } },
+                y: { grid: { display: false }, ticks: { font: { size: 11 } } }
             }
         }
     });
