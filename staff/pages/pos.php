@@ -62,6 +62,7 @@ $grandTotal = $cartTotal + $taxAmount;
     overflow-y: auto;
 }
 
+/* Header, search and category filter styles */
 .pos-header {
     display: flex;
     justify-content: space-between;
@@ -71,27 +72,10 @@ $grandTotal = $cartTotal + $taxAmount;
     border-bottom: 2px solid #3b2f2b;
 }
 
-.cashier-info {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.cashier-avatar {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    background: #3b2f2b;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-}
-
 .search-bar {
     width: 100%;
-    max-width: 400px;
-    padding: 10px 15px;
+    max-width: 420px;
+    padding: 10px 14px;
     border: 2px solid #ddd;
     border-radius: 25px;
     font-size: 14px;
@@ -100,41 +84,50 @@ $grandTotal = $cartTotal + $taxAmount;
 .categories {
     display: flex;
     gap: 10px;
-    margin-bottom: 20px;
+    margin-bottom: 14px;
     flex-wrap: wrap;
 }
 
 .category-btn {
-    padding: 8px 16px;
+    padding: 8px 14px;
     background: #f8f8f8;
     border: 1px solid #ddd;
     border-radius: 20px;
     cursor: pointer;
     font-size: 12px;
-    transition: all 0.2s;
+    transition: all 0.15s;
 }
 
-.category-btn.active,
-.category-btn:hover {
+.category-btn:hover,
+.category-btn.active {
     background: #3b2f2b;
     color: white;
+    border-color: #3b2f2b;
 }
 
 .products-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-    gap: 15px;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 16px;
+    margin-top: 12px;
 }
 
 .product-card {
-    background: white;
+    background: #fff;
     border-radius: 8px;
-    padding: 15px;
+    padding: 14px;
     text-align: center;
     cursor: pointer;
-    transition: transform 0.2s;
-    border: 2px solid transparent;
+    transition: transform 0.15s, box-shadow 0.15s;
+    border: 1px solid rgba(0,0,0,0.03);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
 }
+
+.product-card .product-name { margin-top: 8px; }
+.product-card .product-price { margin-top: 6px; font-weight:700; }
+
 
 .product-card:hover {
     transform: translateY(-2px);
@@ -153,6 +146,56 @@ $grandTotal = $cartTotal + $taxAmount;
     font-size: 24px;
     color: white;
 }
+
+.product-card {
+    box-shadow: 0 6px 18px rgba(0,0,0,0.04);
+}
+
+.product-image img {
+    display: block;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+/* Modal styled to match transaction panel (dark) */
+.product-modal-backdrop {
+    display: none;
+    position: fixed;
+    z-index: 2000;
+    left: 0;
+    top: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0,0,0,0.4);
+    align-items: center;
+    justify-content: center;
+}
+
+.product-modal {
+    background: #3b2f2b;
+    color: white;
+    padding: 20px 18px;
+    border-radius: 10px;
+    max-width: 360px;
+    width: 92vw;
+    position: relative;
+}
+
+.product-modal .modal-image {
+    text-align: center;
+    margin-bottom: 12px;
+}
+
+.product-modal h2 { color: #fff; margin-bottom:6px; }
+.product-modal .price { color: #c79a6e; font-weight:700; margin-bottom:8px; }
+.product-modal .desc { color: rgba(255,255,255,0.85); margin-bottom:14px; }
+
+/* Compact cart item rows to match original design */
+.cart-item { padding: 8px 0; }
+.cart-item .btn { padding: 6px 8px; font-size: 13px; }
+.cart-item img { border-radius: 6px; }
 
 .product-name {
     font-size: 12px;
@@ -252,6 +295,11 @@ $grandTotal = $cartTotal + $taxAmount;
     color: white;
 }
 
+.process-btn {
+    background: #4aa76b;
+    color: white;
+}
+
 .btn-danger {
     background: #e74c3c;
     color: white;
@@ -293,15 +341,40 @@ $grandTotal = $cartTotal + $taxAmount;
         </div>
 
         <div class="products-grid" id="productsGrid">
-            <?php foreach ($products as $product): ?>
-                <div class="product-card" onclick="addToCart(<?php echo $product['product_id']; ?>)">
+            <?php foreach ($products as $product):
+                // use relative path from staff/pages to assets folder so images load correctly
+                $imgSrc = !empty($product['image']) ? ('../../assets/img/products/' . htmlspecialchars($product['image'])) : '';
+                $productData = htmlspecialchars(json_encode([
+                    'id' => $product['product_id'],
+                    'name' => $product['product_name'],
+                    'price' => $product['price'],
+                    'image' => $imgSrc,
+                    'description' => $product['description'] ?? '',
+                ]));
+            ?>
+                <div class="product-card" data-product='<?php echo $productData; ?>' onclick="showProductDetails(this)">
                     <div class="product-image">
-                        <i class="fas fa-coffee"></i>
+                        <?php if ($imgSrc): ?>
+                            <img src="<?php echo $imgSrc; ?>" alt="<?php echo htmlspecialchars($product['product_name']); ?>" style="width:48px;height:48px;object-fit:cover;border-radius:50%;border:1px solid #eee;" />
+                        <?php else: ?>
+                            <i class="fas fa-coffee"></i>
+                        <?php endif; ?>
                     </div>
                     <div class="product-name"><?php echo htmlspecialchars($product['product_name']); ?></div>
                     <div class="product-price">₱<?php echo number_format($product['price'], 2); ?></div>
                 </div>
             <?php endforeach; ?>
+<!-- Product Details Modal -->
+<div id="productDetailsModal" style="display:none;position:fixed;z-index:2000;left:0;top:0;width:100vw;height:100vh;background:rgba(0,0,0,0.4);align-items:center;justify-content:center;">
+    <div style="background:white;padding:30px 20px 20px 20px;border-radius:10px;max-width:350px;width:90vw;position:relative;box-shadow:0 4px 24px rgba(0,0,0,0.15);">
+        <span onclick="closeProductDetailsModal()" style="position:absolute;top:10px;right:18px;font-size:28px;cursor:pointer;">&times;</span>
+        <div id="modalProductImage" style="text-align:center;margin-bottom:15px;"></div>
+        <h2 id="modalProductName" style="margin:0 0 10px 0;font-size:22px;color:#3b2f2b;"></h2>
+        <div id="modalProductPrice" style="font-size:18px;font-weight:600;color:#c79a6e;margin-bottom:10px;"></div>
+        <div id="modalProductDesc" style="font-size:14px;color:#555;margin-bottom:18px;"></div>
+        <button class="btn btn-primary" style="width:100%;" onclick="addModalProductToCart()">Add to Cart</button>
+    </div>
+</div>
         </div>
     </div>
 
@@ -334,170 +407,149 @@ $grandTotal = $cartTotal + $taxAmount;
         </div>
 
         <div class="payment-section">
-            <input type="number" class="amount-input" placeholder="Received Amount" id="receivedAmount">
-            <div class="action-buttons">
-                <button class="btn btn-primary" onclick="processPayment()">
-                    <i class="fas fa-credit-card"></i> Pay
-                </button>
-                <button class="btn btn-danger" onclick="clearCart()">
-                    <i class="fas fa-trash"></i> Clear
-                </button>
-            </div>
-        </div>
+            <div style="display:flex;gap:10px;margin-bottom:10px;align-items:center;">
+                <select id="paymentMethod" class="search-bar" style="max-width:180px;padding:8px 12px;">
+                    <option value="cash">Cash</option>
+                    <option value="gcash">GCash</option>
+                </select>
 
-        <div class="low-stock-alert">
-            <i class="fas fa-exclamation-triangle"></i><br>
-            <strong>LOW STOCK ALERT</strong><br>
-            <div style="margin: 10px 0; font-size: 11px;">
-                Check inventory<br>
-                Please notify the admin!
+                <input type="number" class="amount-input" placeholder="Amount Received" id="receivedAmount" style="flex:1;max-width:260px;">
             </div>
+
+            <button id="processPaymentBtn" class="btn" style="background:#4aa76b;color:white;padding:12px;border-radius:6px;width:100%;display:flex;align-items:center;gap:10px;justify-content:center;" onclick="processPayment()">
+                <i class="fas fa-credit-card"></i> Process Payment
+            </button>
+
+            <button id="clearCartBtn" class="btn btn-danger" style="margin-top:8px; width:100%; display:none;" onclick="clearCart()">
+                <i class="fas fa-trash"></i> Clear
+            </button>
         </div>
     </div>
 </div>
 
 <script>
-// Cart stored in localStorage under 'pos_cart'
-let cart = JSON.parse(localStorage.getItem('pos_cart') || '[]');
 
-// Read product data from the DOM based on productId
-function getProductData(productId) {
-    const card = document.querySelector('.product-card[data-id="' + productId + '"]');
-    if (!card) return null;
-    const name = card.querySelector('.product-name').innerText.trim();
-    const priceText = card.querySelector('.product-price').innerText.replace(/[^0-9.]/g, '');
-    const price = parseFloat(priceText) || 0;
-    return { product_id: productId, product_name: name, price };
+let cart = [];
+let lastModalProduct = null;
+
+document.addEventListener('DOMContentLoaded', () => {
+    loadCartFromStorage();
+    updateCartDisplay();
+});
+
+function showProductDetails(cardElem) {
+    const product = JSON.parse(cardElem.getAttribute('data-product'));
+    localStorage.setItem('selectedProduct', JSON.stringify(product));
+    lastModalProduct = product;
+    document.getElementById('modalProductName').textContent = product.name;
+    document.getElementById('modalProductPrice').textContent = '₱' + Number(product.price).toFixed(2);
+    document.getElementById('modalProductDesc').textContent = product.description || '';
+    if (product.image) {
+        document.getElementById('modalProductImage').innerHTML = `<img src="${product.image}" alt="${escapeHtml(product.name)}" style="width:120px;height:120px;object-fit:cover;border-radius:8px;border:1px solid #eee;" />`;
+    } else {
+        document.getElementById('modalProductImage').innerHTML = '<i class="fas fa-coffee" style="font-size:60px;color:#c79a6e;"></i>';
+    }
+    document.getElementById('productDetailsModal').style.display = 'flex';
 }
 
-function saveCart() {
-    localStorage.setItem('pos_cart', JSON.stringify(cart));
+function closeProductDetailsModal() {
+    document.getElementById('productDetailsModal').style.display = 'none';
+}
+
+function addModalProductToCart() {
+    if (!lastModalProduct) return;
+    const existing = cart.find(i => i.id == lastModalProduct.id);
+    if (existing) existing.quantity += 1;
+    else cart.push({ id: lastModalProduct.id, name: lastModalProduct.name, price: Number(lastModalProduct.price), image: lastModalProduct.image || '', quantity: 1 });
+    saveCartToStorage();
+    updateCartDisplay();
+    closeProductDetailsModal();
 }
 
 function addToCart(productId) {
-    const pid = String(productId);
-    const product = getProductData(pid);
-    if (!product) return;
-
-    // If product exists in cart, increment quantity
-    const existing = cart.find(i => String(i.product_id) === pid);
-    if (existing) {
-        existing.quantity += 1;
-    } else {
-        cart.push({ ...product, quantity: 1 });
+    const cards = document.querySelectorAll('.product-card');
+    for (const card of cards) {
+        const product = JSON.parse(card.getAttribute('data-product'));
+        if (product.id == productId) { showProductDetails(card); break; }
     }
-
-    saveCart();
-    updateCartDisplay();
 }
 
 function removeFromCart(index) {
     if (index < 0 || index >= cart.length) return;
     cart.splice(index, 1);
-    saveCart();
+    saveCartToStorage();
     updateCartDisplay();
 }
 
 function changeQuantity(index, delta) {
     if (index < 0 || index >= cart.length) return;
     cart[index].quantity = Math.max(1, cart[index].quantity + delta);
-    saveCart();
+    saveCartToStorage();
     updateCartDisplay();
 }
 
 function updateCartDisplay() {
     const container = document.getElementById('cartItems');
     container.innerHTML = '';
-
     if (!cart.length) {
-        container.innerHTML = '<div style="text-align: center; opacity: 0.6; padding: 40px 0;">No items in cart</div>';
-        document.getElementById('subtotal').innerText = '₱0.00';
-        document.getElementById('vat').innerText = '₱0.00';
-        document.getElementById('total').innerText = '₱0.00';
+        container.innerHTML = '<div style="text-align:center;opacity:0.6;padding:40px 0;">No items in cart</div>';
+        document.getElementById('subtotal').textContent = '₱0.00';
+        document.getElementById('vat').textContent = '₱0.00';
+        document.getElementById('total').textContent = '₱0.00';
         return;
     }
-
     let subtotal = 0;
     cart.forEach((item, idx) => {
-        const row = document.createElement('div');
-        row.className = 'cart-item';
-        const itemTotal = item.price * item.quantity;
-        subtotal += itemTotal;
-
-        row.innerHTML = `
-            <div style="flex:1">
-                <div style="font-weight:600">${escapeHtml(item.product_name)}</div>
-                <div style="font-size:12px; opacity:0.8">₱${numberFormat(item.price)} x ${item.quantity} = ₱${numberFormat(itemTotal)}</div>
-            </div>
-            <div style="display:flex; gap:8px; align-items:center">
-                <button class="btn" onclick="changeQuantity(${idx}, -1)">-</button>
-                <button class="btn" onclick="changeQuantity(${idx}, 1)">+</button>
-                <button class="btn btn-danger" onclick="removeFromCart(${idx})">Remove</button>
-            </div>
-        `;
-
-        container.appendChild(row);
+        const row = document.createElement('div'); row.className = 'cart-item';
+        const left = document.createElement('div'); left.style.display='flex'; left.style.alignItems='center'; left.style.gap='10px';
+        const imgWrap = document.createElement('div'); imgWrap.style.width='48px'; imgWrap.style.height='48px'; imgWrap.style.flex='none';
+        imgWrap.innerHTML = item.image ? `<img src="${item.image}" alt="${escapeHtml(item.name)}" style="width:48px;height:48px;object-fit:cover;border-radius:6px;border:1px solid #eee;" />` : '<i class="fas fa-coffee" style="font-size:20px;color:#c79a6e;"></i>';
+        const info = document.createElement('div'); info.innerHTML = `<div style="font-size:13px;font-weight:600;color:#fff;">${escapeHtml(item.name)}</div><div style="font-size:12px;color:rgba(255,255,255,0.8)">₱${Number(item.price).toFixed(2)}</div>`;
+        left.appendChild(imgWrap); left.appendChild(info);
+        const right = document.createElement('div'); right.style.display='flex'; right.style.alignItems='center'; right.style.gap='8px';
+        const qty = document.createElement('div'); qty.innerHTML = `<button class="btn" style="padding:4px 8px;" onclick="changeQuantity(${idx}, -1)">-</button> <span style="min-width:24px;display:inline-block;text-align:center;">${item.quantity}</span> <button class="btn" style="padding:4px 8px;" onclick="changeQuantity(${idx}, 1)">+</button>`;
+        const subtotalText = document.createElement('div'); subtotalText.style.fontWeight='700'; subtotalText.textContent = '₱' + (item.price * item.quantity).toFixed(2);
+        const removeBtn = document.createElement('button'); removeBtn.className='btn btn-danger'; removeBtn.style.padding='6px 8px'; removeBtn.textContent='Remove'; removeBtn.onclick = function(){ removeFromCart(idx); };
+        right.appendChild(qty); right.appendChild(subtotalText); right.appendChild(removeBtn);
+        row.appendChild(left); row.appendChild(right); container.appendChild(row);
+        subtotal += item.price * item.quantity;
     });
-
-    const vat = subtotal * 0.12;
-    const total = subtotal + vat;
-
-    document.getElementById('subtotal').innerText = '₱' + numberFormat(subtotal);
-    document.getElementById('vat').innerText = '₱' + numberFormat(vat);
-    document.getElementById('total').innerText = '₱' + numberFormat(total);
+    const vat = subtotal * 0.12; const grand = subtotal + vat;
+    document.getElementById('subtotal').textContent = '₱' + subtotal.toFixed(2);
+    document.getElementById('vat').textContent = '₱' + vat.toFixed(2);
+    document.getElementById('total').textContent = '₱' + grand.toFixed(2);
 }
 
-function numberFormat(value) {
-    return Number(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
+function saveCartToStorage() { try { localStorage.setItem('posCart', JSON.stringify(cart)); } catch(e){ console.warn('Could not save cart', e); } }
+function loadCartFromStorage() { try { const raw = localStorage.getItem('posCart'); cart = raw ? JSON.parse(raw) : []; } catch(e){ cart = []; } }
 
-function escapeHtml(str) {
-    return String(str).replace(/[&<>"'`]/g, function (s) {
-        return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;', '`': '&#96;' })[s];
-    });
-}
+function filterProducts(categoryId) { /* implement if needed */ }
 
-function filterProducts(categoryId) {
-    const cards = document.querySelectorAll('.product-card');
-    if (categoryId === 'all') {
-        cards.forEach(c => c.style.display = 'block');
-        return;
-    }
-    cards.forEach(c => {
-        if (c.dataset.category === String(categoryId)) c.style.display = 'block'; else c.style.display = 'none';
-    });
-}
+function processPayment() { alert('Process payment - implement server-side logic'); }
 
 function processPayment() {
-    // Placeholder - actual implementation should POST to server to create sale
     if (!cart.length) { alert('Cart is empty'); return; }
-    const receivedText = document.getElementById('receivedAmount').value || '0';
-    const received = parseFloat(receivedText) || 0;
-    const totalText = document.getElementById('total').innerText.replace(/[^0-9.]/g, '');
-    const total = parseFloat(totalText) || 0;
-    if (received < total) { alert('Received amount is less than total'); return; }
+    const method = document.getElementById('paymentMethod').value;
+    const amount = parseFloat(document.getElementById('receivedAmount').value || '0');
+    const subtotalText = document.getElementById('subtotal').textContent.replace(/[₱,]/g,'');
+    const total = parseFloat(subtotalText) + parseFloat(document.getElementById('vat').textContent.replace(/[₱,]/g,''));
+    if (!amount || amount < total) {
+        alert('Insufficient amount received');
+        return;
+    }
 
-    // For now just clear cart and show success
-    alert('Payment processed. Change: ₱' + numberFormat(received - total));
-    clearCart();
+    // Minimal confirmation flow - replace with AJAX to server to record sale
+    if (confirm(`Confirm payment of ₱${total.toFixed(2)} via ${method.toUpperCase()}?`)) {
+        // TODO: send cart and payment info to server
+        alert('Payment recorded (demo). Change to AJAX to call backend.');
+        clearCart();
+        document.getElementById('receivedAmount').value = '';
+    }
 }
 
-function clearCart() {
-    cart = [];
-    saveCart();
-    updateCartDisplay();
-}
+function clearCart() { cart = []; saveCartToStorage(); updateCartDisplay(); }
 
-// Attach data-id and data-category attributes to product cards for easier lookup
-document.querySelectorAll('.product-card').forEach(function(card){
-    const idMatch = card.getAttribute('onclick') && card.getAttribute('onclick').match(/addToCart\((\d+)\)/);
-    if (idMatch) card.dataset.id = idMatch[1];
-    // If product had category info in dataset, set it; otherwise default to empty
-    // Optionally you can add data-category to product-card server-side for better filtering
-});
-
-// Initialize UI
-updateCartDisplay();
+function escapeHtml(str) { if (!str) return ''; return String(str).replace(/[&<>\"]/g, function(s){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[s]); }); }
 </script>
 
 <?php include '../components/layout-end.php'; ?>
