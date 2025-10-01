@@ -24,11 +24,51 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'maximum_stock' => intval($_POST['maximum_stock']),
                         'reorder_level' => intval($_POST['reorder_level'])
                     ];
-                    
+
+                    // Handle uploaded product image (optional)
+                    if (!empty($_FILES['product_image']) && $_FILES['product_image']['error'] === UPLOAD_ERR_OK) {
+                        $uploadDir = __DIR__ . '/../../assets/img/products/';
+                        if (!is_dir($uploadDir)) {
+                            mkdir($uploadDir, 0755, true);
+                        }
+
+                        $tmpName = $_FILES['product_image']['tmp_name'];
+                        $origName = basename($_FILES['product_image']['name']);
+                        $ext = pathinfo($origName, PATHINFO_EXTENSION);
+                        $allowed = ['jpg','jpeg','png','gif','webp'];
+                        if (!in_array(strtolower($ext), $allowed)) {
+                            throw new Exception('Unsupported image type. Allowed: jpg, png, gif, webp');
+                        }
+
+                        $safeName = preg_replace('/[^a-zA-Z0-9-_\.]/', '_', pathinfo($origName, PATHINFO_FILENAME));
+                        $newName = $safeName . '_' . time() . '.' . $ext;
+                        $dest = $uploadDir . $newName;
+
+                        if (!move_uploaded_file($tmpName, $dest)) {
+                            throw new Exception('Failed to move uploaded image');
+                        }
+
+                        // Store relative filename for DB
+                        $data['image'] = $newName;
+                    }
+
                     $productId = $productManager->addProduct($data);
                     showAlert('Product added successfully!', 'success');
                 } catch (Exception $e) {
                     showAlert('Error adding product: ' . $e->getMessage(), 'error');
+                }
+                break;
+            case 'add_category':
+                try {
+                    $categoryName = sanitizeInput($_POST['category_name']);
+                    $description = sanitizeInput($_POST['category_description'] ?? '');
+                    if (empty($categoryName)) {
+                        throw new Exception('Category name is required');
+                    }
+                    $db->query("INSERT INTO categories (category_name, description) VALUES (?, ?)", [$categoryName, $description]);
+                    showAlert('Category added successfully!', 'success');
+                } catch (Exception $e) {
+                    showAlert('Error adding category: ' . $e->getMessage(), 'error');
                 }
                 break;
                 
@@ -85,7 +125,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // Get all products with inventory
 $products = $db->fetchAll("
-    SELECT p.*, c.category_name, i.current_stock, i.minimum_stock, i.maximum_stock, i.reorder_level
+    SELECT p.*, p.image_path AS image, c.category_name, i.current_stock, i.minimum_stock, i.maximum_stock, i.reorder_level
     FROM products p
     LEFT JOIN categories c ON p.category_id = c.category_id
     LEFT JOIN inventory i ON p.product_id = i.product_id
@@ -317,9 +357,39 @@ tbody tr:hover {
         <h2 style="margin: 0; color: #2c3e50;">Products Management</h2>
         <p style="color: #7f8c8d; margin: 5px 0 0 0;">Manage your product catalog and inventory</p>
     </div>
-    <button class="btn btn-primary" onclick="openAddModal()">
-        <i class="fas fa-plus"></i> Add New Product
-    </button>
+
+    <!-- Add Category Modal -->
+    <div id="addCategoryModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Add Category</h3>
+                <span class="close" onclick="closeModal('addCategoryModal')">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form method="POST">
+                    <input type="hidden" name="action" value="add_category">
+                    <div class="form-group">
+                        <label class="form-label">Category Name *</label>
+                        <input type="text" name="category_name" class="form-control" required>
+                    </div>
+                    <div style="text-align: right; margin-top: 20px; border-top: 1px solid #eee; padding-top: 15px;">
+                        <button type="button" class="btn" onclick="closeModal('addCategoryModal')" style="margin-right: 10px;">Cancel</button>
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-save"></i> Save Category
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div style="display:flex; gap:10px; align-items:center;">
+        <button class="btn btn-secondary" onclick="openAddCategoryModal()" style="background:#6c757d;color:white;">
+            <i class="fas fa-folder-plus"></i> Add Category
+        </button>
+        <button class="btn btn-primary" onclick="openAddModal()">
+            <i class="fas fa-plus"></i> Add New Product
+        </button>
+    </div>
 </div>
 
 <!-- Search and Filters -->
@@ -387,8 +457,15 @@ tbody tr:hover {
                     data-stock="<?php echo $stockStatus; ?>"
                     data-name="<?php echo strtolower($product['product_name']); ?>">
                     <td>
-                        <strong><?php echo htmlspecialchars($product['product_name']); ?></strong>
-                        <br><small style="color: #7f8c8d;"><?php echo htmlspecialchars($product['description']); ?></small>
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <?php if (!empty($product['image'])): ?>
+                                <img src="<?php echo '/assets/img/products/' . htmlspecialchars($product['image']); ?>" alt="" style="width:48px;height:48px;object-fit:cover;border-radius:4px;border:1px solid #eee;">
+                            <?php endif; ?>
+                            <div>
+                                <strong><?php echo htmlspecialchars($product['product_name']); ?></strong>
+                                <br><small style="color: #7f8c8d;"><?php echo htmlspecialchars($product['description']); ?></small>
+                            </div>
+                        </div>
                     </td>
                     <td><?php echo htmlspecialchars($product['category_name']); ?></td>
                     <td><?php echo htmlspecialchars($product['barcode'] ?: 'N/A'); ?></td>
@@ -426,7 +503,7 @@ tbody tr:hover {
             <span class="close" onclick="closeModal('addModal')">&times;</span>
         </div>
         <div class="modal-body">
-            <form method="POST">
+            <form method="POST" enctype="multipart/form-data">
                 <input type="hidden" name="action" value="add_product">
                 
                 <div class="form-group">
@@ -455,6 +532,15 @@ tbody tr:hover {
                 <div class="form-group">
                     <label class="form-label">Description</label>
                     <textarea name="description" class="form-control" rows="2"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Product Image</label>
+                    <input type="file" name="product_image" id="productImageInput" accept="image/*" class="form-control">
+                    <div style="margin-top:10px; display:flex; gap:10px; align-items:center;">
+                        <img id="productImagePreview" src="" alt="Preview" style="max-width:100px; max-height:100px; display:none; border:1px solid #eee; padding:4px; border-radius:4px; object-fit:cover;" />
+                        <button type="button" class="btn" id="removeImageBtn" style="display:none;" onclick="removeImagePreview()">Remove</button>
+                    </div>
                 </div>
                 
                 <div class="form-row">
@@ -589,6 +675,10 @@ function openAddModal() {
     document.getElementById('addModal').style.display = 'block';
 }
 
+function openAddCategoryModal() {
+    document.getElementById('addCategoryModal').style.display = 'block';
+}
+
 function openEditModal(product) {
     document.getElementById('edit_product_id').value = product.product_id;
     document.getElementById('edit_product_name').value = product.product_name;
@@ -656,6 +746,7 @@ function filterProducts() {
 window.onclick = function(event) {
     const addModal = document.getElementById('addModal');
     const editModal = document.getElementById('editModal');
+    const addCategoryModal = document.getElementById('addCategoryModal');
     
     if (event.target === addModal) {
         addModal.style.display = 'none';
@@ -663,6 +754,38 @@ window.onclick = function(event) {
     if (event.target === editModal) {
         editModal.style.display = 'none';
     }
+    if (addCategoryModal && event.target === addCategoryModal) {
+        addCategoryModal.style.display = 'none';
+    }
+}
+</script>
+
+<script>
+// Image preview for Add Product modal
+const productImageInput = document.getElementById('productImageInput');
+const productImagePreview = document.getElementById('productImagePreview');
+const removeImageBtn = document.getElementById('removeImageBtn');
+
+if (productImageInput) {
+    productImageInput.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(ev) {
+            productImagePreview.src = ev.target.result;
+            productImagePreview.style.display = 'inline-block';
+            removeImageBtn.style.display = 'inline-block';
+        };
+        reader.readAsDataURL(file);
+    });
+}
+
+function removeImagePreview() {
+    if (!productImageInput) return;
+    productImageInput.value = '';
+    productImagePreview.src = '';
+    productImagePreview.style.display = 'none';
+    removeImageBtn.style.display = 'none';
 }
 </script>
 
