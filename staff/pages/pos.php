@@ -478,6 +478,26 @@ $grandTotal = $cartTotal + $taxAmount;
     </div>
 </div>
 
+<!-- Receipt Display Modal -->
+<div id="receiptModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; align-items: center; justify-content: center;">
+    <div style="background: white; border-radius: 8px; padding: 20px; max-width: 400px; max-height: 90vh; overflow-y: auto; position: relative;">
+        <button onclick="closeReceiptModal()" style="position: absolute; top: 10px; right: 15px; background: none; border: none; font-size: 24px; cursor: pointer; color: #999;">&times;</button>
+        
+        <div id="receiptContent" style="font-family: 'Courier New', monospace; font-size: 12px; line-height: 1.4; color: #333;">
+            <!-- Receipt content will be populated here -->
+        </div>
+        
+        <div style="margin-top: 20px; text-align: center; display: flex; gap: 10px; justify-content: center;">
+            <button onclick="printReceiptAgain()" style="background: #3b2f2b; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer;">
+                <i class="fas fa-print"></i> Print Again
+            </button>
+            <button onclick="closeReceiptModal()" style="background: #6c757d; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer;">
+                Close
+            </button>
+        </div>
+    </div>
+</div>
+
 <script>
 
 let cart = [];
@@ -696,26 +716,221 @@ function processPayment() {
         user_id: <?php echo json_encode($user['user_id'] ?? null); ?>
     };
 
+    // Show loading state
+    const processBtn = document.getElementById('processPaymentBtn');
+    const originalText = processBtn.innerHTML;
+    processBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+    processBtn.disabled = true;
+
     fetch('../api/process-sale.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
-    }).then(r => r.json()).then(data => {
-        if (data && data.success) {
-            alert('Payment recorded. Change: ₱' + change.toFixed(2));
-            clearCart();
-            document.getElementById('receivedAmount').value = '';
-            updatePaymentSummary();
-        } else {
-            alert('Failed to record sale: ' + (data.message || 'unknown'));
+    }).then(r => {
+        console.log('Response status:', r.status);
+        console.log('Response headers:', r.headers);
+        return r.text(); // Get as text first to see what we're getting
+    }).then(responseText => {
+        console.log('Raw response:', responseText);
+        try {
+            const data = JSON.parse(responseText);
+            console.log('Parsed data:', data);
+            
+            // Reset button state
+            processBtn.innerHTML = originalText;
+            processBtn.disabled = false;
+            
+            if (data && data.success) {
+                // Show receipt modal first
+                showReceiptModal(payload, data, change);
+                
+                // Clear cart and reset form
+                clearCart();
+                document.getElementById('receivedAmount').value = '';
+                updatePaymentSummary();
+            } else {
+                alert('Failed to record sale: ' + (data.message || 'unknown error'));
+            }
+        } catch (jsonErr) {
+            processBtn.innerHTML = originalText;
+            processBtn.disabled = false;
+            console.error('JSON parse error:', jsonErr);
+            console.error('Response was not valid JSON:', responseText);
+            alert('Server returned invalid response. Check console for details.');
         }
     }).catch(err => {
+        processBtn.innerHTML = originalText;
+        processBtn.disabled = false;
         console.error('Sale error', err);
-        alert('Server error while recording sale');
+        alert('Server error while recording sale. Please try again.');
     });
 }
 
+// Receipt Modal Functions
+let currentSaleId = null;
+
+function showReceiptModal(saleData, serverResponse, change) {
+    currentSaleId = serverResponse.sale_id;
+    const modal = document.getElementById('receiptModal');
+    const content = document.getElementById('receiptContent');
+    
+    // Generate receipt HTML that matches the thermal printer output
+    const receiptHtml = generateReceiptHTML(saleData, serverResponse, change);
+    content.innerHTML = receiptHtml;
+    
+    // Show modal with flex display
+    modal.style.display = 'flex';
+    
+    // Show print status message
+    let statusMessage = '';
+    if (serverResponse.auto_print_enabled) {
+        if (serverResponse.print_success) {
+            statusMessage = '<div style="background: #d4edda; color: #155724; padding: 10px; border-radius: 5px; margin-bottom: 15px; text-align: center;"><i class="fas fa-check-circle"></i> Receipt printed successfully!</div>';
+        } else {
+            statusMessage = '<div style="background: #f8d7da; color: #721c24; padding: 10px; border-radius: 5px; margin-bottom: 15px; text-align: center;"><i class="fas fa-exclamation-circle"></i> Print failed - ' + (serverResponse.print_message || 'check printer connection') + '</div>';
+        }
+    } else {
+        statusMessage = '<div style="background: #fff3cd; color: #856404; padding: 10px; border-radius: 5px; margin-bottom: 15px; text-align: center;"><i class="fas fa-info-circle"></i> Auto-print is disabled. Enable it in Admin Settings.</div>';
+    }
+    
+    content.innerHTML = statusMessage + receiptHtml;
+}
+
+function generateReceiptHTML(saleData, serverResponse, change) {
+    const currentDate = new Date();
+    const dateStr = currentDate.toLocaleDateString();
+    const timeStr = currentDate.toLocaleTimeString();
+    
+    // Calculate totals
+    let subtotal = 0;
+    saleData.cart.forEach(item => {
+        subtotal += (item.price || 0) * (item.quantity || 1);
+    });
+    
+    let html = `
+        <div style="text-align: center; border-bottom: 1px solid #ddd; padding-bottom: 15px; margin-bottom: 15px;">
+            <h2 style="margin: 0; font-size: 18px; font-weight: bold;">9BAR COFFEE</h2>
+            <div style="font-size: 11px; margin: 5px 0;">Balamban, Cebu, Philippines</div>
+            <div style="font-size: 11px;">(032) 123-4567</div>
+        </div>
+        
+        <div style="border-bottom: 1px solid #ddd; padding-bottom: 10px; margin-bottom: 10px;">
+            <div style="display: flex; justify-content: space-between; font-size: 11px;">
+                <span>Sale #: ${serverResponse.sale_id}</span>
+                <span>${dateStr} ${timeStr}</span>
+            </div>
+            <div style="font-size: 11px;">Cashier: <?php echo htmlspecialchars($user['full_name'] ?? 'Staff'); ?></div>
+            <div style="font-size: 11px;">Customer: Walk-in</div>
+        </div>
+        
+        <div style="border-bottom: 1px solid #ddd; padding-bottom: 10px; margin-bottom: 10px;">
+    `;
+    
+    // Add items
+    saleData.cart.forEach(item => {
+        const itemTotal = (item.price || 0) * (item.quantity || 1);
+        html += `
+            <div style="margin-bottom: 8px;">
+                <div style="font-weight: bold; font-size: 12px;">${escapeHtml(item.name || 'Unknown Item')}</div>
+                <div style="display: flex; justify-content: space-between; font-size: 11px;">
+                    <span>${item.quantity || 1} x ₱${(item.price || 0).toFixed(2)}</span>
+                    <span>₱${itemTotal.toFixed(2)}</span>
+                </div>
+            </div>
+        `;
+    });
+    
+    html += `
+        </div>
+        
+        <div style="border-bottom: 1px solid #ddd; padding-bottom: 10px; margin-bottom: 10px;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                <span>Subtotal:</span>
+                <span>₱${subtotal.toFixed(2)}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 14px;">
+                <span>TOTAL:</span>
+                <span>₱${subtotal.toFixed(2)}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-top: 5px;">
+                <span>Payment (${saleData.method.toUpperCase()}):</span>
+                <span>₱${(saleData.payment.amount || 0).toFixed(2)}</span>
+            </div>
+    `;
+    
+    if (change > 0) {
+        html += `
+            <div style="display: flex; justify-content: space-between;">
+                <span>Change:</span>
+                <span>₱${change.toFixed(2)}</span>
+            </div>
+        `;
+    }
+    
+    html += `
+        </div>
+        
+        <div style="text-align: center; font-size: 11px; margin-top: 15px;">
+            <div>Thank you for your business!</div>
+            <div>Please come again!</div>
+        </div>
+    `;
+    
+    return html;
+}
+
+function closeReceiptModal() {
+    const modal = document.getElementById('receiptModal');
+    modal.style.display = 'none';
+    currentSaleId = null;
+}
+
+function printReceiptAgain() {
+    if (!currentSaleId) {
+        alert('No sale ID available for printing');
+        return;
+    }
+    printReceiptManually(currentSaleId);
+}
+
 function clearCart() { cart = []; saveCartToStorage(); updateCartDisplay(); }
+
+// Manual receipt printing function
+function printReceiptManually(saleId) {
+    if (!saleId) {
+        alert('No sale ID provided for printing');
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('sale_id', saleId);
+    
+    fetch('../api/print-receipt.php', {
+        method: 'POST',
+        credentials: 'same-origin', // Include cookies/session
+        body: formData
+    }).then(r => {
+        console.log('Print response status:', r.status);
+        return r.json();
+    }).then(data => {
+        console.log('Print response data:', data);
+        if (data && data.success) {
+            alert('✅ Receipt printed successfully!');
+        } else {
+            if (data.redirect) {
+                // Authentication issue - redirect to login
+                if (confirm('Session expired. Please login again. Redirect now?')) {
+                    window.location.href = data.redirect;
+                }
+            } else {
+                alert('❌ Print failed: ' + (data.error || data.message || 'Unknown error'));
+            }
+        }
+    }).catch(err => {
+        console.error('Print error', err);
+        alert('❌ Print request failed. Please check printer connection and try again.');
+    });
+}
 
 function escapeHtml(str) { if (!str) return ''; return String(str).replace(/[&<>\"]/g, function(s){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[s]); }); }
 </script>
