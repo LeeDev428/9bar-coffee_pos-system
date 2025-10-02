@@ -235,14 +235,36 @@ $grandTotal = $cartTotal + $taxAmount;
     flex: 1;
     overflow-y: auto;
     margin-bottom: 20px;
+    max-height: 280px;
+    min-height: 120px;
+    padding-right: 5px;
+}
+
+.cart-items::-webkit-scrollbar {
+    width: 6px;
+}
+
+.cart-items::-webkit-scrollbar-track {
+    background: rgba(255,255,255,0.1);
+    border-radius: 3px;
+}
+
+.cart-items::-webkit-scrollbar-thumb {
+    background: rgba(199,154,110,0.6);
+    border-radius: 3px;
+}
+
+.cart-items::-webkit-scrollbar-thumb:hover {
+    background: rgba(199,154,110,0.8);
 }
 
 .cart-item {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 10px 0;
+    padding: 8px 0;
     border-bottom: 1px solid rgba(255,255,255,0.1);
+    min-height: 48px;
 }
 
 .totals {
@@ -313,6 +335,12 @@ $grandTotal = $cartTotal + $taxAmount;
     text-align: center;
     font-size: 12px;
 }
+
+.addon-btn:hover {
+    background: #c79a6e !important;
+    color: white !important;
+    transform: translateY(-1px);
+}
 </style>
 
 <div class="pos-container">
@@ -320,9 +348,6 @@ $grandTotal = $cartTotal + $taxAmount;
     <div class="products-section">
         <div class="pos-header">
             <div class="cashier-info">
-                <div class="cashier-avatar">
-                    <i class="fas fa-user"></i>
-                </div>
                 <div>
                     <div style="font-weight: 600;"><?php echo htmlspecialchars($user['full_name']); ?></div>
                     <div style="font-size: 12px; color: #7f8c8d;">Cashier</div>
@@ -344,15 +369,14 @@ $grandTotal = $cartTotal + $taxAmount;
             <?php foreach ($products as $product):
                 // use relative path from staff/pages to assets folder so images load correctly
                 $imgSrc = !empty($product['image']) ? ('../../assets/img/products/' . htmlspecialchars($product['image'])) : '';
-                $productData = htmlspecialchars(json_encode([
-                    'id' => $product['product_id'],
-                    'name' => $product['product_name'],
-                    'price' => $product['price'],
-                    'image' => $imgSrc,
-                    'description' => $product['description'] ?? '',
-                ]));
-            ?>
-                <div class="product-card" data-product='<?php echo $productData; ?>' onclick="showProductDetails(this)">
+                // Emit individual data-* attributes to avoid JSON-in-attribute parsing issues
+                $dataId = htmlspecialchars($product['product_id']);
+                $dataName = htmlspecialchars($product['product_name']);
+                $dataPrice = htmlspecialchars($product['price']);
+                $dataImage = htmlspecialchars($imgSrc);
+                $dataDesc = htmlspecialchars($product['description'] ?? '');
+                ?>
+                <div class="product-card" data-id="<?php echo $dataId; ?>" data-name="<?php echo $dataName; ?>" data-price="<?php echo $dataPrice; ?>" data-image="<?php echo $dataImage; ?>" data-description="<?php echo $dataDesc; ?>" onclick="showProductDetails(this)">
                     <div class="product-image">
                         <?php if ($imgSrc): ?>
                             <img src="<?php echo $imgSrc; ?>" alt="<?php echo htmlspecialchars($product['product_name']); ?>" style="width:48px;height:48px;object-fit:cover;border-radius:50%;border:1px solid #eee;" />
@@ -385,6 +409,28 @@ $grandTotal = $cartTotal + $taxAmount;
             <div class="transaction-number">No. <?php echo date('Ymd') . sprintf('%04d', rand(1, 9999)); ?></div>
         </div>
 
+        <!-- Add-ons Section -->
+        <div class="addons-section" style="margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid rgba(255,255,255,0.1);">
+            <h4 style="margin: 0 0 10px 0; font-size: 14px; color: rgba(255,255,255,0.9);">Add-ons</h4>
+            <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+                <button class="addon-btn" onclick="addAddon('Espresso Shot', 35)" style="padding: 4px 8px; background: rgba(199,154,110,0.2); color: #c79a6e; border: 1px solid #c79a6e; border-radius: 12px; font-size: 10px; cursor: pointer; transition: all 0.2s;">
+                    Espresso Shot +₱35
+                </button>
+                <button class="addon-btn" onclick="addAddon('Whipped Cream', 25)" style="padding: 4px 8px; background: rgba(199,154,110,0.2); color: #c79a6e; border: 1px solid #c79a6e; border-radius: 12px; font-size: 10px; cursor: pointer; transition: all 0.2s;">
+                    Whipped Cream +₱25
+                </button>
+                <button class="addon-btn" onclick="addAddon('Flavored Syrup', 20)" style="padding: 4px 8px; background: rgba(199,154,110,0.2); color: #c79a6e; border: 1px solid #c79a6e; border-radius: 12px; font-size: 10px; cursor: pointer; transition: all 0.2s;">
+                    Flavored Syrup +₱20
+                </button>
+                <button class="addon-btn" onclick="addAddon('Coffee Jelly', 20)" style="padding: 4px 8px; background: rgba(199,154,110,0.2); color: #c79a6e; border: 1px solid #c79a6e; border-radius: 12px; font-size: 10px; cursor: pointer; transition: all 0.2s;">
+                    Coffee Jelly +₱30
+                </button>
+                <button class="addon-btn" onclick="addAddon('Nata de Coco', 15)" style="padding: 4px 8px; background: rgba(199,154,110,0.2); color: #c79a6e; border: 1px solid #c79a6e; border-radius: 12px; font-size: 10px; cursor: pointer; transition: all 0.2s;">
+                    Nata de Coco +₱15
+                </button>
+            </div>
+        </div>
+
         <div class="cart-items" id="cartItems">
             <div style="text-align: center; opacity: 0.6; padding: 40px 0;">
                 No items in cart
@@ -396,13 +442,18 @@ $grandTotal = $cartTotal + $taxAmount;
                 <span>Subtotal:</span>
                 <span id="subtotal">₱0.00</span>
             </div>
+            <!-- Removed VAT row per request -->
             <div class="total-row">
-                <span>VAT (12%):</span>
-                <span id="vat">₱0.00</span>
+                <span>Received:</span>
+                <span id="receivedDisplay">₱0.00</span>
             </div>
             <div class="total-row grand">
                 <span>Total:</span>
                 <span id="total">₱0.00</span>
+            </div>
+            <div class="total-row">
+                <span>Change:</span>
+                <span id="changeDisplay">₱0.00</span>
             </div>
         </div>
 
@@ -438,8 +489,15 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function showProductDetails(cardElem) {
-    const product = JSON.parse(cardElem.getAttribute('data-product'));
-    localStorage.setItem('selectedProduct', JSON.stringify(product));
+    // read product fields from data-* attributes to avoid JSON parsing issues
+    const product = {
+        id: cardElem.dataset.id,
+        name: cardElem.dataset.name,
+        price: cardElem.dataset.price,
+        image: cardElem.dataset.image,
+        description: cardElem.dataset.description
+    };
+    try { localStorage.setItem('selectedProduct', JSON.stringify(product)); } catch(e){}
     lastModalProduct = product;
     document.getElementById('modalProductName').textContent = product.name;
     document.getElementById('modalProductPrice').textContent = '₱' + Number(product.price).toFixed(2);
@@ -458,20 +516,52 @@ function closeProductDetailsModal() {
 
 function addModalProductToCart() {
     if (!lastModalProduct) return;
-    const existing = cart.find(i => i.id == lastModalProduct.id);
+    // ensure image is present; try lastModalProduct.image then lookup from product cards
+    const imageSrc = lastModalProduct.image || getProductImageById(lastModalProduct.id) || '';
+    const existing = cart.find(i => i.id == lastModalProduct.id && !i.isAddon);
     if (existing) existing.quantity += 1;
-    else cart.push({ id: lastModalProduct.id, name: lastModalProduct.name, price: Number(lastModalProduct.price), image: lastModalProduct.image || '', quantity: 1 });
+    else cart.push({ id: lastModalProduct.id, name: lastModalProduct.name, price: Number(lastModalProduct.price), image: imageSrc, quantity: 1 });
     saveCartToStorage();
     updateCartDisplay();
     closeProductDetailsModal();
 }
 
+// Try to find product image from the product-card elements by product id
+function getProductImageById(productId) {
+    const cards = document.querySelectorAll('.product-card');
+    for (const card of cards) {
+        const id = card.dataset.id;
+        const img = card.dataset.image;
+        if (id && id == productId && img) return img;
+    }
+    return '';
+}
+
 function addToCart(productId) {
     const cards = document.querySelectorAll('.product-card');
     for (const card of cards) {
-        const product = JSON.parse(card.getAttribute('data-product'));
-        if (product.id == productId) { showProductDetails(card); break; }
+        const id = card.dataset.id;
+        if (id == productId) { showProductDetails(card); break; }
     }
+}
+
+function addAddon(addonName, addonPrice) {
+    // Add addon as a separate cart item
+    const existing = cart.find(i => i.name === addonName && i.isAddon === true);
+    if (existing) {
+        existing.quantity += 1;
+    } else {
+        cart.push({
+            id: 'addon_' + Date.now(),
+            name: addonName,
+            price: Number(addonPrice),
+            image: '',
+            quantity: 1,
+            isAddon: true
+        });
+    }
+    saveCartToStorage();
+    updateCartDisplay();
 }
 
 function removeFromCart(index) {
@@ -494,34 +584,90 @@ function updateCartDisplay() {
     if (!cart.length) {
         container.innerHTML = '<div style="text-align:center;opacity:0.6;padding:40px 0;">No items in cart</div>';
         document.getElementById('subtotal').textContent = '₱0.00';
-        document.getElementById('vat').textContent = '₱0.00';
         document.getElementById('total').textContent = '₱0.00';
+        // reset payment summary
+        updatePaymentSummary();
         return;
     }
     let subtotal = 0;
     cart.forEach((item, idx) => {
         const row = document.createElement('div'); row.className = 'cart-item';
-        const left = document.createElement('div'); left.style.display='flex'; left.style.alignItems='center'; left.style.gap='10px';
-        const imgWrap = document.createElement('div'); imgWrap.style.width='48px'; imgWrap.style.height='48px'; imgWrap.style.flex='none';
-        imgWrap.innerHTML = item.image ? `<img src="${item.image}" alt="${escapeHtml(item.name)}" style="width:48px;height:48px;object-fit:cover;border-radius:6px;border:1px solid #eee;" />` : '<i class="fas fa-coffee" style="font-size:20px;color:#c79a6e;"></i>';
-        const info = document.createElement('div'); info.innerHTML = `<div style="font-size:13px;font-weight:600;color:#fff;">${escapeHtml(item.name)}</div><div style="font-size:12px;color:rgba(255,255,255,0.8)">₱${Number(item.price).toFixed(2)}</div>`;
+        const left = document.createElement('div'); left.style.display='flex'; left.style.alignItems='center'; left.style.gap='8px'; left.style.flex='1'; left.style.minWidth='0';
+        const imgWrap = document.createElement('div'); imgWrap.style.width='36px'; imgWrap.style.height='36px'; imgWrap.style.flexShrink='0';
+        
+        // Different styling for add-ons
+        if (item.isAddon) {
+            imgWrap.innerHTML = '<div style="width:36px;height:36px;display:flex;align-items:center;justify-content:center;background:rgba(199,154,110,0.3);border-radius:4px;border:1px solid #c79a6e;"><i class="fas fa-plus" style="font-size:12px;color:#c79a6e;"></i></div>';
+        } else {
+            if (item.image) {
+                // Create image element via DOM to avoid nested-quote escaping issues
+                const imgEl = document.createElement('img');
+                imgEl.src = item.image;
+                imgEl.alt = escapeHtml(item.name);
+                imgEl.style.width = '36px';
+                imgEl.style.height = '36px';
+                imgEl.style.objectFit = 'cover';
+                imgEl.style.borderRadius = '4px';
+                imgEl.style.border = '1px solid #eee';
+                imgEl.onerror = function() {
+                    try {
+                        this.onerror = null;
+                        this.style.display = 'none';
+                        imgWrap.innerHTML = '<div style="width:36px;height:36px;display:flex;align-items:center;justify-content:center;background:rgba(199,154,110,0.2);border-radius:4px;"><i class="fas fa-coffee" style="font-size:16px;color:#c79a6e;"></i></div>';
+                    } catch (e) { imgWrap.innerHTML = '' }
+                };
+                imgWrap.appendChild(imgEl);
+            } else {
+                imgWrap.innerHTML = '<div style="width:36px;height:36px;display:flex;align-items:center;justify-content:center;background:rgba(199,154,110,0.2);border-radius:4px;"><i class="fas fa-coffee" style="font-size:16px;color:#c79a6e;"></i></div>';
+            }
+        }
+        
+        const info = document.createElement('div'); info.style.flex='1'; info.style.minWidth='0';
+        
+        // Different text styling for add-ons
+        if (item.isAddon) {
+            info.innerHTML = `<div style="font-size:12px;font-weight:600;color:#c79a6e;word-wrap:break-word;line-height:1.1;font-style:italic;">+ ${escapeHtml(item.name)}</div><div style="font-size:11px;color:rgba(199,154,110,0.8);margin-top:1px;">₱${Number(item.price).toFixed(2)}</div>`;
+        } else {
+            info.innerHTML = `<div style="font-size:12px;font-weight:600;color:#fff;word-wrap:break-word;line-height:1.1;">${escapeHtml(item.name)}</div><div style="font-size:11px;color:rgba(255,255,255,0.7);margin-top:1px;">₱${Number(item.price).toFixed(2)}</div>`;
+        }
         left.appendChild(imgWrap); left.appendChild(info);
-        const right = document.createElement('div'); right.style.display='flex'; right.style.alignItems='center'; right.style.gap='8px';
-        const qty = document.createElement('div'); qty.innerHTML = `<button class="btn" style="padding:4px 8px;" onclick="changeQuantity(${idx}, -1)">-</button> <span style="min-width:24px;display:inline-block;text-align:center;">${item.quantity}</span> <button class="btn" style="padding:4px 8px;" onclick="changeQuantity(${idx}, 1)">+</button>`;
-        const subtotalText = document.createElement('div'); subtotalText.style.fontWeight='700'; subtotalText.textContent = '₱' + (item.price * item.quantity).toFixed(2);
-        const removeBtn = document.createElement('button'); removeBtn.className='btn btn-danger'; removeBtn.style.padding='6px 8px'; removeBtn.textContent='Remove'; removeBtn.onclick = function(){ removeFromCart(idx); };
+        const right = document.createElement('div'); right.style.display='flex'; right.style.alignItems='center'; right.style.gap='6px'; right.style.flexShrink='0';
+        const qty = document.createElement('div'); qty.style.display='flex'; qty.style.alignItems='center'; qty.style.gap='2px'; qty.style.minWidth='80px'; qty.innerHTML = `<button class="btn" style="padding:4px 6px;min-width:24px;height:24px;display:flex;align-items:center;justify-content:center;background:#c79a6e;color:white;border:none;border-radius:3px;font-size:12px;font-weight:600;" onclick="changeQuantity(${idx}, -1)">-</button> <span style="min-width:24px;display:inline-flex;align-items:center;justify-content:center;height:24px;background:rgba(255,255,255,0.1);border-radius:3px;font-weight:600;font-size:12px;">${item.quantity}</span> <button class="btn" style="padding:4px 6px;min-width:24px;height:24px;display:flex;align-items:center;justify-content:center;background:#c79a6e;color:white;border:none;border-radius:3px;font-size:12px;font-weight:600;" onclick="changeQuantity(${idx}, 1)">+</button>`;
+        const subtotalText = document.createElement('div'); subtotalText.style.fontWeight='600'; subtotalText.style.minWidth='60px'; subtotalText.style.textAlign='right'; subtotalText.style.fontSize='12px'; subtotalText.textContent = '₱' + (item.price * item.quantity).toFixed(2);
+        const removeBtn = document.createElement('button'); removeBtn.className='btn btn-danger'; removeBtn.style.padding='4px 6px'; removeBtn.style.minWidth='55px'; removeBtn.style.height='24px'; removeBtn.style.fontSize='11px'; removeBtn.textContent='Remove'; removeBtn.onclick = function(){ removeFromCart(idx); };
         right.appendChild(qty); right.appendChild(subtotalText); right.appendChild(removeBtn);
         row.appendChild(left); row.appendChild(right); container.appendChild(row);
         subtotal += item.price * item.quantity;
     });
-    const vat = subtotal * 0.12; const grand = subtotal + vat;
+    // No VAT applied here per request. Total is just the subtotal.
+    const grand = subtotal;
     document.getElementById('subtotal').textContent = '₱' + subtotal.toFixed(2);
-    document.getElementById('vat').textContent = '₱' + vat.toFixed(2);
+    // Clear vat display if it exists
+    const vatEl = document.getElementById('vat'); if (vatEl) vatEl.textContent = '';
     document.getElementById('total').textContent = '₱' + grand.toFixed(2);
+
+    // Update payment summary (received and change)
+    updatePaymentSummary();
 }
 
 function saveCartToStorage() { try { localStorage.setItem('posCart', JSON.stringify(cart)); } catch(e){ console.warn('Could not save cart', e); } }
 function loadCartFromStorage() { try { const raw = localStorage.getItem('posCart'); cart = raw ? JSON.parse(raw) : []; } catch(e){ cart = []; } }
+
+// Update payment display (received amount and change)
+function updatePaymentSummary() {
+    const subtotalText = document.getElementById('subtotal').textContent.replace(/[₱,]/g,'') || '0';
+    const total = parseFloat(subtotalText) || 0;
+    const received = parseFloat(document.getElementById('receivedAmount').value || '0') || 0;
+    const receivedDisplay = document.getElementById('receivedDisplay');
+    const changeDisplay = document.getElementById('changeDisplay');
+    if (receivedDisplay) receivedDisplay.textContent = '₱' + received.toFixed(2);
+    if (changeDisplay) changeDisplay.textContent = '₱' + Math.max(0, (received - total)).toFixed(2);
+}
+
+// Listen for changes on the received amount to update the summary live
+document.addEventListener('input', function(e){
+    if (e.target && e.target.id === 'receivedAmount') updatePaymentSummary();
+});
 
 function filterProducts(categoryId) { /* implement if needed */ }
 
@@ -532,19 +678,41 @@ function processPayment() {
     const method = document.getElementById('paymentMethod').value;
     const amount = parseFloat(document.getElementById('receivedAmount').value || '0');
     const subtotalText = document.getElementById('subtotal').textContent.replace(/[₱,]/g,'');
-    const total = parseFloat(subtotalText) + parseFloat(document.getElementById('vat').textContent.replace(/[₱,]/g,''));
+    const total = parseFloat(subtotalText) || 0;
     if (!amount || amount < total) {
         alert('Insufficient amount received');
         return;
     }
 
-    // Minimal confirmation flow - replace with AJAX to server to record sale
-    if (confirm(`Confirm payment of ₱${total.toFixed(2)} via ${method.toUpperCase()}?`)) {
-        // TODO: send cart and payment info to server
-        alert('Payment recorded (demo). Change to AJAX to call backend.');
-        clearCart();
-        document.getElementById('receivedAmount').value = '';
-    }
+    const change = Math.max(0, amount - total);
+
+    // Confirm and send to server to record sale and decrement stock
+    if (!confirm(`Confirm payment of ₱${total.toFixed(2)} via ${method.toUpperCase()}?\nChange: ₱${change.toFixed(2)}`)) return;
+
+    const payload = {
+        cart: cart,
+        payment: { amount: amount },
+        method: method,
+        user_id: <?php echo json_encode($user['user_id'] ?? null); ?>
+    };
+
+    fetch('../api/process-sale.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    }).then(r => r.json()).then(data => {
+        if (data && data.success) {
+            alert('Payment recorded. Change: ₱' + change.toFixed(2));
+            clearCart();
+            document.getElementById('receivedAmount').value = '';
+            updatePaymentSummary();
+        } else {
+            alert('Failed to record sale: ' + (data.message || 'unknown'));
+        }
+    }).catch(err => {
+        console.error('Sale error', err);
+        alert('Server error while recording sale');
+    });
 }
 
 function clearCart() { cart = []; saveCartToStorage(); updateCartDisplay(); }
