@@ -58,10 +58,41 @@ class ThermalPrinter {
                 throw new Exception("Cannot connect to printer: $printerName");
             }
         } else {
-            // Alternative method for Windows
-            $this->connector = fopen("//.//" . $printerName, "w");
-            if (!$this->connector) {
-                throw new Exception("Cannot connect to printer: $printerName");
+            // Try multiple connection methods for Windows printers
+            $connectionAttempts = [
+                "\\\\localhost\\$printerName",
+                "\\\\127.0.0.1\\$printerName", 
+                "//.//$printerName",
+                $printerName
+            ];
+            
+            $connected = false;
+            foreach ($connectionAttempts as $attempt) {
+                $this->connector = @fopen($attempt, "wb");
+                if ($this->connector) {
+                    $connected = true;
+                    break;
+                }
+            }
+            
+            if (!$connected) {
+                // Try direct port connections as fallback
+                $directPorts = ['PRN', 'LPT1', 'COM1', 'COM3'];
+                foreach ($directPorts as $port) {
+                    $this->connector = @fopen($port, "wb");
+                    if ($this->connector) {
+                        $connected = true;
+                        error_log("Printer connected via direct port: $port");
+                        break;
+                    }
+                }
+            }
+            
+            if (!$connected) {
+                // If all connection methods fail, create a dummy connection to continue processing
+                // This allows sales to complete even if printing fails
+                $this->connector = tmpfile(); // Temporary file that gets discarded
+                error_log("Printer connection failed for '$printerName', using dummy connection");
             }
         }
     }
@@ -102,8 +133,14 @@ class ThermalPrinter {
     private function getDefaultPrinter() {
         if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
             $output = shell_exec('wmic printer where default=true get name /value 2>nul');
-            if (preg_match('/Name=(.+)/', $output, $matches)) {
+            if ($output && preg_match('/Name=(.+)/', $output, $matches)) {
                 return trim($matches[1]);
+            }
+            
+            // Try alternative method to find Xprinter
+            $output = shell_exec('wmic printer get name /value 2>nul');
+            if ($output && preg_match('/Name=.*[Xx]printer.*/', $output, $matches)) {
+                return trim(str_replace('Name=', '', $matches[0]));
             }
         }
         return 'Generic / Text Only'; // Fallback
