@@ -104,6 +104,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         ]);
                     }
                     
+                        // Handle uploaded image for edit
+                        if (!empty($_FILES['product_image_edit']) && $_FILES['product_image_edit']['error'] === UPLOAD_ERR_OK) {
+                            $uploadDir = __DIR__ . '/../../assets/img/products/';
+                            if (!is_dir($uploadDir)) mkdir($uploadDir, 0755, true);
+                            $tmpName = $_FILES['product_image_edit']['tmp_name'];
+                            $origName = basename($_FILES['product_image_edit']['name']);
+                            $ext = pathinfo($origName, PATHINFO_EXTENSION);
+                            $allowed = ['jpg','jpeg','png','gif','webp'];
+                            if (!in_array(strtolower($ext), $allowed)) {
+                                throw new Exception('Unsupported image type. Allowed: jpg, png, gif, webp');
+                            }
+                            $safeName = preg_replace('/[^a-zA-Z0-9-_\.]/', '_', pathinfo($origName, PATHINFO_FILENAME));
+                            $newName = $safeName . '_' . time() . '.' . $ext;
+                            $dest = $uploadDir . $newName;
+                            if (!move_uploaded_file($tmpName, $dest)) {
+                                throw new Exception('Failed to move uploaded image');
+                            }
+                            // update products table image_path
+                            $db->query("UPDATE products SET image_path = ? WHERE product_id = ?", [$newName, $productId]);
+                        } elseif (isset($_POST['edit_remove_image']) && $_POST['edit_remove_image'] == '1') {
+                            // Remove image flag: clear image_path
+                            $db->query("UPDATE products SET image_path = NULL WHERE product_id = ?", [$productId]);
+                        }
+                    
                     showAlert('Product updated successfully!', 'success');
                 } catch (Exception $e) {
                     showAlert('Error updating product: ' . $e->getMessage(), 'error');
@@ -458,8 +482,9 @@ tbody tr:hover {
                     data-name="<?php echo strtolower($product['product_name']); ?>">
                     <td>
                         <div style="display:flex; align-items:center; gap:10px;">
-                            <?php if (!empty($product['image'])): ?>
-                                <img src="<?php echo '/assets/img/products/' . htmlspecialchars($product['image']); ?>" alt="" style="width:48px;height:48px;object-fit:cover;border-radius:4px;border:1px solid #eee;">
+                            <?php $imgFile = $product['image'] ?? $product['image_path'] ?? ''; ?>
+                            <?php if (!empty($imgFile)): ?>
+                                <img src="<?php echo '../../assets/img/products/' . htmlspecialchars($imgFile); ?>" alt="" style="width:48px;height:48px;object-fit:cover;border-radius:4px;border:1px solid #eee;">
                             <?php endif; ?>
                             <div>
                                 <strong><?php echo htmlspecialchars($product['product_name']); ?></strong>
@@ -595,7 +620,7 @@ tbody tr:hover {
             <span class="close" onclick="closeModal('editModal')">&times;</span>
         </div>
         <div class="modal-body">
-            <form method="POST" id="editForm">
+            <form method="POST" id="editForm" enctype="multipart/form-data">
                 <input type="hidden" name="action" value="edit_product">
                 <input type="hidden" name="product_id" id="edit_product_id">
                 
@@ -647,6 +672,16 @@ tbody tr:hover {
                         <input type="number" name="minimum_stock" id="edit_minimum_stock" class="form-control">
                     </div>
                 </div>
+
+                <div class="form-group">
+                    <label class="form-label">Product Image</label>
+                    <input type="file" name="product_image_edit" id="editProductImageInput" accept="image/*" class="form-control">
+                    <input type="hidden" name="remove_image" id="edit_remove_image" value="0">
+                    <div style="margin-top:10px; display:flex; gap:10px; align-items:center;">
+                        <img id="editProductImagePreview" src="" alt="Preview" style="max-width:100px; max-height:100px; display:none; border:1px solid #eee; padding:4px; border-radius:4px; object-fit:cover;" />
+                        <button type="button" class="btn" id="editRemoveImageBtn" style="display:none;" onclick="removeEditImagePreview()">Remove</button>
+                    </div>
+                </div>
                 
                 <div class="form-row">
                     <div class="form-group">
@@ -692,6 +727,24 @@ function openEditModal(product) {
     document.getElementById('edit_maximum_stock').value = product.maximum_stock || 100;
     document.getElementById('edit_reorder_level').value = product.reorder_level || 10;
     
+    // set existing image preview if any
+    const preview = document.getElementById('editProductImagePreview');
+    const removeBtn = document.getElementById('editRemoveImageBtn');
+    const removeFlag = document.getElementById('edit_remove_image');
+    const imgFile = product.image || product.image_path || '';
+    if (imgFile) {
+        const imgPath = '../../assets/img/products/' + imgFile;
+        preview.src = imgPath;
+        preview.style.display = 'inline-block';
+        removeBtn.style.display = 'inline-block';
+        removeFlag.value = '0';
+    } else {
+        preview.src = '';
+        preview.style.display = 'none';
+        removeBtn.style.display = 'none';
+        removeFlag.value = '0';
+    }
+
     document.getElementById('editModal').style.display = 'block';
 }
 
@@ -786,6 +839,35 @@ function removeImagePreview() {
     productImagePreview.src = '';
     productImagePreview.style.display = 'none';
     removeImageBtn.style.display = 'none';
+}
+
+// Image preview for Edit Product modal
+const editProductImageInput = document.getElementById('editProductImageInput');
+const editProductImagePreview = document.getElementById('editProductImagePreview');
+const editRemoveImageBtn = document.getElementById('editRemoveImageBtn');
+
+if (editProductImageInput) {
+    editProductImageInput.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(ev) {
+            editProductImagePreview.src = ev.target.result;
+            editProductImagePreview.style.display = 'inline-block';
+            editRemoveImageBtn.style.display = 'inline-block';
+            document.getElementById('edit_remove_image').value = '0';
+        };
+        reader.readAsDataURL(file);
+    });
+}
+
+function removeEditImagePreview() {
+    if (!editProductImageInput) return;
+    editProductImageInput.value = '';
+    editProductImagePreview.src = '';
+    editProductImagePreview.style.display = 'none';
+    editRemoveImageBtn.style.display = 'none';
+    document.getElementById('edit_remove_image').value = '1';
 }
 </script>
 
