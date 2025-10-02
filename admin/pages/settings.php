@@ -943,19 +943,31 @@ function testPrinter() {
         testBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Printing...';
         testBtn.disabled = true;
         
-        // Create a form to submit printer test
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.innerHTML = '<input type="hidden" name="action" value="test_printer">';
-        document.body.appendChild(form);
-        
-        // In a real implementation, this would make an AJAX call to test the printer
-        setTimeout(() => {
+        // Make AJAX call to test printer
+        fetch('../api/test-printer.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({})
+        })
+        .then(response => response.json())
+        .then(data => {
             testBtn.innerHTML = originalText;
             testBtn.disabled = false;
-            alert('Test print sent! Check your printer for the test receipt.');
-            document.body.removeChild(form);
-        }, 3000);
+            
+            if (data.success) {
+                alert('✅ Test print successful! Check your printer for the test receipt.');
+            } else {
+                alert('❌ Test print failed: ' + (data.error || data.message || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            testBtn.innerHTML = originalText;
+            testBtn.disabled = false;
+            console.error('Test print error:', error);
+            alert('❌ Test print request failed. Please check printer connection and settings.');
+        });
     }
 }
 
