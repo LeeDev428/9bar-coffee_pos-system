@@ -1,9 +1,17 @@
 <?php
 // Minimal API endpoint to process a sale from POS
 header('Content-Type: application/json');
+
+// Start session if not already started
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
 require_once '../../includes/database.php';
-require_once '../../includes/ProductManager.php';
+require_once '../../includes/ProductManager.php';  
 require_once '../../includes/SalesManager.php';
+require_once '../../includes/ThermalPrinter.php';
+require_once '../../includes/auth.php';
 
 // read JSON payload
 $input = json_decode(file_get_contents('php://input'), true);
@@ -36,38 +44,157 @@ try {
     $pdo = $db->getConnection();
     $pdo->beginTransaction();
 
-    // Insert into sales (if table exists). Adjust columns if your schema differs.
-    $stmt = $pdo->prepare("INSERT INTO sales (user_id, total_amount, payment_method, created_at) VALUES (?, ?, ?, NOW())");
-    $stmt->execute([$userId, $subtotal, $method]);
+    // Insert into sales table
+    $stmt = $pdo->prepare("INSERT INTO sales (user_id, total_amount, payment_method, sale_date, transaction_number) VALUES (?, ?, ?, NOW(), ?)");
+    $transactionNumber = 'TXN-' . date('YmdHis') . '-' . rand(100, 999);
+    $stmt->execute([$userId, $subtotal, $method, $transactionNumber]);
     $saleId = $pdo->lastInsertId();
 
     // Insert sale items and decrement stock for products (skip addons without product_id)
     $productManager = new ProductManager($pdo);
 
-    $itemStmt = $pdo->prepare("INSERT INTO sale_items (sale_id, product_id, name, price, quantity) VALUES (?, ?, ?, ?, ?)");
+    $itemStmt = $pdo->prepare("INSERT INTO sale_items (sale_id, product_id, unit_price, quantity, total_price, subtotal) VALUES (?, ?, ?, ?, ?, ?)");
     foreach ($cart as $item) {
         $pid = $item['id'] ?? null;
-        $name = $item['name'] ?? '';
         $price = (float)($item['price'] ?? 0);
         $qty = (int)($item['quantity'] ?? 1);
+        $totalPrice = $price * $qty;
 
-        $itemStmt->execute([$saleId, $pid, $name, $price, $qty]);
+        // Skip addon items for database insert (they don't have real product_id)
+        // Only insert actual products with numeric IDs
+        if ($pid && preg_match('/^\d+$/', $pid)) {
+            $itemStmt->execute([$saleId, $pid, $price, $qty, $totalPrice, $totalPrice]);
+        }
+        // Note: Addons will still appear on receipt but won't be stored as separate line items
 
         // decrement stock only if product id looks like a numeric product (not addon id)
         if ($pid && preg_match('/^\d+$/', $pid)) {
-            // Attempt to decrement via ProductManager if available
-            if (method_exists($productManager, 'decreaseStock')) {
-                $productManager->decreaseStock((int)$pid, $qty);
-            } else {
-                // fallback: update inventory table's current_stock
-                $upd = $pdo->prepare("UPDATE inventory SET current_stock = GREATEST(0, current_stock - ?) WHERE product_id = ?");
-                $upd->execute([$qty, $pid]);
-            }
+            // Stock will be automatically decremented by the database trigger
+            // update_inventory_on_sale trigger handles this automatically
         }
     }
 
     $pdo->commit();
-    echo json_encode(['success' => true, 'message' => 'Sale recorded', 'sale_id' => $saleId]);
+    
+    // Auto-print receipt if enabled
+    $printSuccess = false;
+    $printMessage = '';
+    
+    try {
+        // Check if auto-print is enabled
+        $autoPrintSetting = $db->fetchOne("SELECT setting_value FROM settings WHERE setting_key = 'auto_print_receipt'");
+        $autoPrint = ($autoPrintSetting && $autoPrintSetting['setting_value'] == '1');
+        
+        if ($autoPrint) {
+            // Get current user for cashier name
+            $auth = new Auth($db);
+            $currentUser = $auth->getCurrentUser();
+            
+            // Fallback if no current user in session
+            if (!$currentUser && $userId) {
+                $userLookup = $db->fetchOne("SELECT user_id, username, full_name, role FROM users WHERE user_id = ? AND status = 'active'", [$userId]);
+                if ($userLookup) {
+                    $currentUser = $userLookup;
+                }
+            }
+            
+            $cashierName = $currentUser ? ($currentUser['full_name'] ?? $currentUser['username'] ?? 'Staff') : 'Unknown';
+            
+            // Get business settings
+            $businessSettings = [];
+            $businessResult = $db->fetchAll("SELECT setting_key, setting_value FROM settings WHERE setting_key LIKE 'business_%' OR setting_key LIKE 'receipt_%'");
+            foreach ($businessResult as $setting) {
+                $businessSettings[$setting['setting_key']] = $setting['setting_value'];
+            }
+            
+            // Get printer settings
+            $printerSettings = [];
+            $printerResult = $db->fetchAll("SELECT setting_key, setting_value FROM settings WHERE setting_key LIKE 'printer_%' OR setting_key IN ('paper_width', 'character_set', 'enable_cash_drawer', 'print_qr_code', 'windows_printer_name', 'network_printer_ip', 'network_printer_port', 'usb_printer_path')");
+            foreach ($printerResult as $setting) {
+                $printerSettings[$setting['setting_key']] = $setting['setting_value'];
+            }
+            
+            // Prepare receipt data
+            $receiptData = [
+                'business_name' => $businessSettings['business_name'] ?? '9BAR COFFEE',
+                'business_address' => $businessSettings['business_address'] ?? 'Balamban, Cebu, Philippines',
+                'business_phone' => $businessSettings['business_phone'] ?? '(032) 123-4567',
+                'sale_id' => $saleId,
+                'transaction_number' => 'TXN-' . date('Ymd') . '-' . str_pad($saleId, 4, '0', STR_PAD_LEFT),
+                'cashier' => $cashierName,
+                'customer_name' => 'Walk-in Customer',
+                'items' => [],
+                'subtotal' => $subtotal,
+                'tax_rate' => '0', // No tax in your current system
+                'tax_amount' => 0,
+                'total_amount' => $subtotal,
+                'payment_method' => $method,
+                'amount_paid' => $payment['amount'] ?? $subtotal,
+                'change_amount' => max(0, ($payment['amount'] ?? $subtotal) - $subtotal),
+                'receipt_header' => $businessSettings['receipt_header'] ?? 'Welcome to 9Bar Coffee!',
+                'receipt_footer' => $businessSettings['receipt_footer'] ?? 'Thank you for your business!\nPlease come again!'
+            ];
+            
+            // Add items to receipt
+            foreach ($cart as $item) {
+                $receiptData['items'][] = [
+                    'product_name' => $item['name'] ?? 'Unknown Item',
+                    'quantity' => $item['quantity'] ?? 1,
+                    'unit_price' => $item['price'] ?? 0,
+                    'subtotal' => ($item['price'] ?? 0) * ($item['quantity'] ?? 1)
+                ];
+            }
+            
+            // Add QR code if enabled
+            if (isset($printerSettings['print_qr_code']) && $printerSettings['print_qr_code'] == '1') {
+                $receiptData['qr_data'] = 'Sale #' . $saleId . ' - ' . date('Y-m-d H:i:s') . ' - Total: ₱' . number_format($subtotal, 2);
+            }
+            
+            // Initialize printer and print
+            $printerType = $printerSettings['printer_type'] ?? 'windows';
+            $connectionString = '';
+            
+            switch ($printerType) {
+                case 'network':
+                    $ip = $printerSettings['network_printer_ip'] ?? '';
+                    $port = $printerSettings['network_printer_port'] ?? '9100';
+                    $connectionString = $ip . ':' . $port;
+                    break;
+                case 'usb':
+                    $connectionString = $printerSettings['usb_printer_path'] ?? 'COM1';
+                    break;
+                case 'windows':
+                default:
+                    $connectionString = $printerSettings['windows_printer_name'] ?? '';
+                    break;
+            }
+            
+            $printer = new ThermalPrinter($printerType, $connectionString);
+            $printSuccess = $printer->printReceipt($receiptData);
+            
+            // Note: Cash drawer opening disabled - user doesn't have a cash drawer
+            // if ($method === 'cash' && 
+            //     isset($printerSettings['enable_cash_drawer']) && 
+            //     $printerSettings['enable_cash_drawer'] == '1') {
+            //     $printer->openDrawer();
+            // }
+            
+            $printer->close();
+            $printMessage = $printSuccess ? 'Receipt printed successfully!' : 'Print failed - check printer connection';
+        }
+    } catch (Exception $printEx) {
+        error_log("Auto-print error: " . $printEx->getMessage());
+        $printMessage = 'Print error: ' . $printEx->getMessage();
+    }
+    
+    echo json_encode([
+        'success' => true, 
+        'message' => 'Sale recorded', 
+        'sale_id' => $saleId,
+        'print_success' => $printSuccess,
+        'print_message' => $printMessage,
+        'auto_print_enabled' => isset($autoPrint) ? $autoPrint : false
+    ]);
     exit;
 } catch (Exception $ex) {
     if (isset($pdo) && $pdo->inTransaction()) $pdo->rollBack();
