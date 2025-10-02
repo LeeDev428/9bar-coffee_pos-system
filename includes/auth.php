@@ -1,6 +1,8 @@
 <?php
 // Session Management and Authentication Functions
-session_start();
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 
 class Auth {
     private $db;
