@@ -3,10 +3,13 @@
  * Printer Test Endpoint
  * Tests thermal printer connectivity and prints test receipt
  */
-require_once '../includes/database.php';
-require_once '../includes/auth.php';
-require_once '../includes/functions.php';
-require_once '../includes/ThermalPrinter.php';
+require_once '../../includes/database.php';
+require_once '../../includes/auth.php';
+require_once '../../includes/functions.php';
+require_once '../../includes/ThermalPrinter.php';
+
+// Set JSON response header
+header('Content-Type: application/json');
 
 // Initialize database and auth
 try {
