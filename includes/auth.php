@@ -30,6 +30,10 @@ class Auth {
         if ($user) {
             // Check if it's a hashed password or plain text
             if (password_verify($password, $user['password'])) {
+                // Bcrypt hash
+                $passwordValid = true;
+            } else if (md5($password) === $user['password']) {
+                // MD5 hash (used by seeder)
                 $passwordValid = true;
             } else if ($user['password'] === $password) {
                 // For plain text passwords (development)
