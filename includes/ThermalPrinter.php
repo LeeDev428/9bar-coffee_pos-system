@@ -67,32 +67,36 @@ class ThermalPrinter {
             ];
             
             $connected = false;
+            $lastError = '';
+            
             foreach ($connectionAttempts as $attempt) {
+                // Clear any previous errors
+                error_clear_last();
+                
+                // Try to open the printer with a timeout-friendly approach
                 $this->connector = @fopen($attempt, "wb");
-                if ($this->connector) {
+                
+                if ($this->connector && is_resource($this->connector)) {
                     $connected = true;
+                    
+                    // Keep blocking mode to ensure data is actually sent
+                    // Set a reasonable timeout for Windows printers
+                    stream_set_timeout($this->connector, 10);
+                    
                     break;
                 }
-            }
-            
-            if (!$connected) {
-                // Try direct port connections as fallback
-                $directPorts = ['PRN', 'LPT1', 'COM1', 'COM3'];
-                foreach ($directPorts as $port) {
-                    $this->connector = @fopen($port, "wb");
-                    if ($this->connector) {
-                        $connected = true;
-                        error_log("Printer connected via direct port: $port");
-                        break;
-                    }
+                
+                $error = error_get_last();
+                if ($error) {
+                    $lastError = $error['message'];
                 }
             }
             
             if (!$connected) {
                 // If all connection methods fail, create a dummy connection to continue processing
                 // This allows sales to complete even if printing fails
+                error_log("WARNING: Printer connection failed for '$printerName' - Last error: $lastError");
                 $this->connector = tmpfile(); // Temporary file that gets discarded
-                error_log("Printer connection failed for '$printerName', using dummy connection");
             }
         }
     }
@@ -150,11 +154,28 @@ class ThermalPrinter {
      * Send raw data to printer
      */
     private function write($data) {
-        if ($this->printer && function_exists('printer_write')) {
-            printer_write($this->printer, $data);
-        } elseif ($this->connector) {
-            fwrite($this->connector, $data);
-            fflush($this->connector);
+        try {
+            if ($this->printer && function_exists('printer_write')) {
+                printer_write($this->printer, $data);
+            } elseif ($this->connector && is_resource($this->connector)) {
+                // Write data with error checking
+                $written = fwrite($this->connector, $data);
+                
+                if ($written === false) {
+                    error_log("Failed to write to printer");
+                    return false;
+                }
+                
+                // Force flush to ensure data is sent immediately
+                fflush($this->connector);
+                
+                // Small delay to prevent overwhelming the printer buffer
+                usleep(1000); // 1ms delay between writes
+            }
+            return true;
+        } catch (Exception $e) {
+            error_log("Printer write error: " . $e->getMessage());
+            return false;
         }
     }
     
@@ -283,22 +304,38 @@ class ThermalPrinter {
      * Close connection
      */
     public function close() {
-        if ($this->printer && function_exists('printer_close')) {
-            printer_close($this->printer);
-        } elseif ($this->connector) {
-            fclose($this->connector);
+        try {
+            if ($this->printer && function_exists('printer_close')) {
+                printer_close($this->printer);
+                $this->printer = null;
+            } elseif ($this->connector) {
+                // Ensure all data is written before closing
+                if (is_resource($this->connector)) {
+                    fflush($this->connector);
+                    fclose($this->connector);
+                }
+                $this->connector = null;
+            }
+            
+            // Delay to allow Windows to fully release the printer resource
+            // Critical for Windows USB thermal printers on immediate reprints
+            usleep(500000); // 500ms delay
+        } catch (Exception $e) {
+            error_log("Error closing printer connection: " . $e->getMessage());
         }
     }
     
     /**
-     * Print receipt
+     * Print receipt - Matches Modal Format Exactly
      */
     public function printReceipt($receiptData) {
         try {
             $this->initialize();
             
-            // Header
-            $this->setAlign(self::ALIGN_CENTER)
+            // ========== HEADER SECTION (centered) ==========
+            $this->feed(1)
+                 ->setAlign(self::ALIGN_CENTER)
+                 ->line('-', 32)
                  ->setTextSize(self::SIZE_DOUBLE)
                  ->setBold(true)
                  ->textln($receiptData['business_name'])
@@ -306,58 +343,74 @@ class ThermalPrinter {
                  ->setBold(false)
                  ->textln($receiptData['business_address'])
                  ->textln($receiptData['business_phone'])
-                 ->textln('Tel: ' . $receiptData['business_phone'])
+                 ->line('-', 32)
                  ->feed(1);
             
-            // Transaction Info
-            $this->setAlign(self::ALIGN_LEFT)
-                 ->line('=', 32)
-                 ->columns('Sale #: ' . $receiptData['sale_id'], date('m/d/Y H:i'))
-                 ->columns('Cashier: ' . $receiptData['cashier'], '')
-                 ->textln('Customer: ' . ($receiptData['customer_name'] ?: 'Walk-in'))
-                 ->line('-', 32);
+            // ========== TRANSACTION INFO (left aligned) ==========
+            $this->setAlign(self::ALIGN_LEFT);
             
-            // Items
+            // Sale # and Date/Time on same line
+            $dateTime = date('n/j/Y, g:i:s A');
+            $this->columns('Sale #: ' . $receiptData['sale_id'], $dateTime);
+            
+            // Cashier
+            // $this->textln('Cashier: ' . substr($receiptData['cashier'], 0, 24));
+            
+            // Customer
+            $this->textln('Customer: ' . substr($receiptData['customer_name'] ?: 'Walk-in', 0, 22));
+            
+            $this->feed(1)
+                 ->line('-', 32)
+                 ->feed(1);
+            
+            // ========== ITEMS SECTION ==========
             foreach ($receiptData['items'] as $item) {
-                $this->textln($item['product_name']);
-                $this->columns(
-                    $item['quantity'] . ' x ' . number_format($item['unit_price'], 2),
-                    number_format($item['subtotal'], 2)
-                );
+                // Product name (bold)
+                $productName = substr($item['product_name'], 0, 32);
+                $this->setBold(true)
+                     ->textln($productName)
+                     ->setBold(false);
+                
+                // Quantity x Price and subtotal on same line
+                $qtyPrice = $item['quantity'] . ' x P' . number_format($item['unit_price'], 2);
+                $subtotal = 'P' . number_format($item['subtotal'], 2);
+                $this->columns($qtyPrice, $subtotal);
+                $this->feed(1);
             }
             
-            // Totals
+            // ========== TOTALS SECTION ==========
             $this->line('-', 32)
-                 ->columns('Subtotal:', number_format($receiptData['subtotal'], 2))
-                 ->columns('Tax (' . $receiptData['tax_rate'] . '%):', number_format($receiptData['tax_amount'], 2))
-                 ->line('=', 32)
-                 ->setTextSize(self::SIZE_DOUBLE_HEIGHT)
-                 ->setBold(true)
-                 ->columns('TOTAL:', 'P' . number_format($receiptData['total_amount'], 2))
-                 ->setTextSize(self::SIZE_NORMAL)
-                 ->setBold(false)
-                 ->line('=', 32)
-                 ->columns('Payment (' . ucfirst($receiptData['payment_method']) . '):', 'P' . number_format($receiptData['amount_paid'], 2));
+                 ->feed(1);
             
+            // Subtotal
+            $this->columns('Subtotal:', 'P' . number_format($receiptData['subtotal'], 2));
+            
+            // TOTAL (bold and larger)
+            $this->setBold(true)
+                 ->columns('TOTAL:', 'P' . number_format($receiptData['total_amount'], 2))
+                 ->setBold(false);
+            
+            // Payment method
+            $paymentMethod = strtoupper($receiptData['payment_method']);
+            $this->columns('Payment (' . $paymentMethod . '):', 'P' . number_format($receiptData['amount_paid'], 2));
+            
+            // Change (if applicable)
             if ($receiptData['change_amount'] > 0) {
                 $this->columns('Change:', 'P' . number_format($receiptData['change_amount'], 2));
             }
             
-            // Footer
             $this->feed(1)
-                 ->setAlign(self::ALIGN_CENTER)
-                 ->textln($receiptData['receipt_footer'] ?? 'Thank you for your business!')
-                 ->textln('Please come again!')
+                 ->line('-', 32)
                  ->feed(1);
             
-            // QR Code (optional)
-            if (isset($receiptData['qr_data'])) {
-                $this->qrCode($receiptData['qr_data']);
-                $this->feed(1);
-            }
+            // ========== FOOTER SECTION (centered) ==========
+            $this->setAlign(self::ALIGN_CENTER)
+                 ->textln('Thank you for your business!')
+                 ->textln('Please come again!')
+                 ->feed(2);
             
             // Cut paper
-            $this->cut();
+            $this->cut(3);
             
             return true;
             
@@ -375,7 +428,7 @@ class ThermalPrinter {
              ->setAlign(self::ALIGN_CENTER)
              ->setTextSize(self::SIZE_DOUBLE)
              ->setBold(true)
-             ->textln("9BAR COFFEE")
+             ->textln("9BARS COFFEE")
              ->setTextSize(self::SIZE_NORMAL)
              ->setBold(false)
              ->textln("Thermal Printer Test")

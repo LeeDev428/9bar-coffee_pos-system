@@ -116,12 +116,11 @@ try {
             
             // Prepare receipt data
             $receiptData = [
-                'business_name' => $businessSettings['business_name'] ?? '9BAR COFFEE',
-                'business_address' => $businessSettings['business_address'] ?? 'Balamban, Cebu, Philippines',
-                'business_phone' => $businessSettings['business_phone'] ?? '(032) 123-4567',
+                'business_name' => $businessSettings['business_name'] ?? '9BARS COFFEE',
+                'business_address' => $businessSettings['business_address'] ?? '0099 F.C. Tuazon Street, Pateros, Philippines 1620',
+                'business_phone' => $businessSettings['business_phone'] ?? '09391288505',
                 'sale_id' => $saleId,
                 'transaction_number' => 'TXN-' . date('Ymd') . '-' . str_pad($saleId, 4, '0', STR_PAD_LEFT),
-                'cashier' => $cashierName,
                 'customer_name' => 'Walk-in Customer',
                 'items' => [],
                 'subtotal' => $subtotal,

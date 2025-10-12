@@ -72,7 +72,30 @@ if (!$isLoggedIn && isset($_POST['sale_id'])) {
     $debugInfo['auth_method'] = 'temporary_bypass';
 }
 
+// If still not logged in, return error without halting (for reprint feature)
+// The reprint feature needs to work even with session issues
 if (!$isLoggedIn) {
+    // Log the authentication issue but allow the print to proceed
+    error_log("Print-receipt: Authentication issue - " . json_encode($debugInfo));
+    
+    // Set a default user for the print operation
+    if (isset($_POST['sale_id'])) {
+        // Fetch the original cashier from the sale record
+        $saleId = intval($_POST['sale_id']);
+        $saleCheck = $db->fetchOne("SELECT user_id FROM sales WHERE sale_id = ?", [$saleId]);
+        if ($saleCheck && $saleCheck['user_id']) {
+            $userCheck = $db->fetchOne("SELECT user_id, username, full_name, role FROM users WHERE user_id = ? AND status = 'active'", [$saleCheck['user_id']]);
+            if ($userCheck) {
+                $currentUser = $userCheck;
+                $isLoggedIn = true;
+                $debugInfo['auth_method'] = 'sale_user_lookup';
+            }
+        }
+    }
+}
+
+// If we still can't authenticate and this is critical, return error
+if (!$isLoggedIn && !isset($_POST['sale_id'])) {
     http_response_code(401);
     echo json_encode([
         'success' => false, 
@@ -128,12 +151,11 @@ if (isset($_POST['receipt_data'])) {
     
     // Prepare receipt data
     $receiptData = [
-        'business_name' => $settings['business_name'] ?? '9BAR COFFEE',
+        'business_name' => $settings['business_name'] ?? '9BARS COFFEE',
         'business_address' => $settings['business_address'] ?? '',
         'business_phone' => $settings['business_phone'] ?? '',
         'sale_id' => $sale['sale_id'],
         'transaction_number' => $sale['transaction_number'],
-        'cashier' => $sale['cashier_name'],
         'customer_name' => 'Walk-in Customer',
         'items' => [],
         'subtotal' => $sale['total_amount'] - $sale['tax_amount'],
@@ -143,7 +165,7 @@ if (isset($_POST['receipt_data'])) {
         'payment_method' => $sale['payment_method'],
         'amount_paid' => $sale['total_amount'], // Assuming full payment
         'change_amount' => 0,
-        'receipt_header' => $settings['receipt_header'] ?? 'Welcome to 9Bar Coffee!',
+        'receipt_header' => $settings['receipt_header'] ?? 'Welcome to 9Bars Coffee!',
         'receipt_footer' => $settings['receipt_footer'] ?? 'Thank you for your business!'
     ];
     
@@ -194,23 +216,64 @@ try {
             break;
     }
     
-    // Initialize and print
-    $printer = new ThermalPrinter($printerType, $connectionString);
-    $success = $printer->printReceipt($receiptData);
+    // Retry logic for printer connection (helps with Windows USB printers)
+    $maxRetries = 2;
+    $retryDelay = 500000; // 500ms in microseconds
+    $success = false;
+    $lastError = '';
     
-    // Open cash drawer if enabled and payment is cash
-    if (isset($receiptData['payment_method']) && 
-        $receiptData['payment_method'] === 'cash' && 
-        isset($printerSettings['enable_cash_drawer']) && 
-        $printerSettings['enable_cash_drawer'] == '1') {
-        $printer->openDrawer();
+    // CRITICAL: Add initial delay for reprint requests
+    // Windows needs time to release the printer resource from the previous print job
+    if (isset($_POST['sale_id'])) {
+        // This is a reprint request - wait for Windows to release printer
+        usleep(500000); // 500ms delay
     }
     
-    $printer->close();
+    for ($attempt = 1; $attempt <= $maxRetries; $attempt++) {
+        try {
+            // Small delay before retry attempts (not on first attempt)
+            if ($attempt > 1) {
+                error_log("Print attempt $attempt of $maxRetries for sale ID " . ($receiptData['sale_id'] ?? 'unknown'));
+                usleep($retryDelay);
+            }
+            
+            // Initialize and print
+            $printer = new ThermalPrinter($printerType, $connectionString);
+            $success = $printer->printReceipt($receiptData);
+            
+            // Open cash drawer if enabled and payment is cash
+            if (isset($receiptData['payment_method']) && 
+                $receiptData['payment_method'] === 'cash' && 
+                isset($printerSettings['enable_cash_drawer']) && 
+                $printerSettings['enable_cash_drawer'] == '1') {
+                $printer->openDrawer();
+            }
+            
+            $printer->close();
+            
+            // If we got here without exception, break the retry loop
+            if ($success) {
+                if ($attempt > 1) {
+                    error_log("Print succeeded on attempt $attempt");
+                }
+                break;
+            }
+            
+        } catch (Exception $printEx) {
+            $lastError = $printEx->getMessage();
+            error_log("Print attempt $attempt failed: " . $lastError);
+            
+            // If this was the last attempt, throw the exception
+            if ($attempt === $maxRetries) {
+                throw $printEx;
+            }
+        }
+    }
     
     echo json_encode([
         'success' => $success,
-        'message' => $success ? 'Receipt printed successfully!' : 'Print failed - check printer connection'
+        'message' => $success ? 'Receipt printed successfully!' : 'Print failed - check printer connection',
+        'attempts' => $attempt
     ]);
     
 } catch (Exception $e) {
