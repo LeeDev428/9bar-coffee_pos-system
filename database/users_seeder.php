@@ -17,7 +17,7 @@ try {
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
     
     echo "=================================================\n";
-    echo "       9BAR POS - Users Seeder Script\n";
+    echo "       9BARS POS - Users Seeder Script\n";
     echo "=================================================\n\n";
     
     // Check if users already exist
