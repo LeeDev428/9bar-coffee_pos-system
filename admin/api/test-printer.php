@@ -75,8 +75,8 @@ try {
     
     // Create test receipt data
     $testReceiptData = [
-        'business_name' => $businessSettings['business_name'] ?? '9BAR COFFEE',
-        'business_address' => $businessSettings['business_address'] ?? 'Balamban, Cebu, Philippines',
+        'business_name' => $businessSettings['business_name'] ?? '9BARS COFFEE',
+        'business_address' => $businessSettings['business_address'] ?? '0099 F.C. Tuazon Street, Pateros, Philippines 1620',
         'business_phone' => $businessSettings['business_phone'] ?? '(032) 123-4567',
         'sale_id' => 'TEST-' . date('YmdHis'),
         'cashier' => $auth->getCurrentUser()['username'] ?? 'Test User',
