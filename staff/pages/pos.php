@@ -488,9 +488,6 @@ $grandTotal = $cartTotal + $taxAmount;
         </div>
         
         <div style="margin-top: 20px; text-align: center; display: flex; gap: 10px; justify-content: center;">
-            <button onclick="printReceiptAgain()" style="background: #3b2f2b; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer;">
-                <i class="fas fa-print"></i> Print Again
-            </button>
             <button onclick="closeReceiptModal()" style="background: #6c757d; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer;">
                 Close
             </button>
@@ -809,9 +806,9 @@ function generateReceiptHTML(saleData, serverResponse, change) {
     
     let html = `
         <div style="text-align: center; border-bottom: 1px solid #ddd; padding-bottom: 15px; margin-bottom: 15px;">
-            <h2 style="margin: 0; font-size: 18px; font-weight: bold;">9BAR COFFEE</h2>
-            <div style="font-size: 11px; margin: 5px 0;">Balamban, Cebu, Philippines</div>
-            <div style="font-size: 11px;">(032) 123-4567</div>
+            <h2 style="margin: 0; font-size: 18px; font-weight: bold;">9BARS COFFEE</h2>
+            <div style="font-size: 11px; margin: 5px 0;">0099 F.C. Tuazon Street, Pateros, Philippines 1620</div>
+            <div style="font-size: 11px;">09391288505</div>
         </div>
         
         <div style="border-bottom: 1px solid #ddd; padding-bottom: 10px; margin-bottom: 10px;">
@@ -902,6 +899,12 @@ function printReceiptManually(saleId) {
         return;
     }
     
+    // Show loading state
+    const printBtn = event.target;
+    const originalText = printBtn.innerHTML;
+    printBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Printing...';
+    printBtn.disabled = true;
+    
     const formData = new FormData();
     formData.append('sale_id', saleId);
     
@@ -911,22 +914,45 @@ function printReceiptManually(saleId) {
         body: formData
     }).then(r => {
         console.log('Print response status:', r.status);
-        return r.json();
-    }).then(data => {
-        console.log('Print response data:', data);
-        if (data && data.success) {
-            alert('✅ Receipt printed successfully!');
-        } else {
-            if (data.redirect) {
-                // Authentication issue - redirect to login
-                if (confirm('Session expired. Please login again. Redirect now?')) {
-                    window.location.href = data.redirect;
-                }
+        console.log('Print response headers:', [...r.headers.entries()]);
+        return r.text(); // Get as text first to handle non-JSON responses
+    }).then(responseText => {
+        console.log('Print raw response:', responseText);
+        
+        // Reset button state
+        if (printBtn) {
+            printBtn.innerHTML = originalText;
+            printBtn.disabled = false;
+        }
+        
+        try {
+            const data = JSON.parse(responseText);
+            console.log('Print parsed data:', data);
+            
+            if (data && data.success) {
+                alert('✅ Receipt printed successfully!');
             } else {
-                alert('❌ Print failed: ' + (data.error || data.message || 'Unknown error'));
+                if (data.redirect) {
+                    // Authentication issue - redirect to login
+                    if (confirm('Session expired. Please login again. Redirect now?')) {
+                        window.location.href = data.redirect;
+                    }
+                } else {
+                    alert('❌ Print failed: ' + (data.error || data.message || 'Unknown error'));
+                }
             }
+        } catch (jsonErr) {
+            console.error('JSON parse error:', jsonErr);
+            console.error('Response was not valid JSON:', responseText);
+            alert('❌ Server returned invalid response. Check console for details.');
         }
     }).catch(err => {
+        // Reset button state
+        if (printBtn) {
+            printBtn.innerHTML = originalText;
+            printBtn.disabled = false;
+        }
+        
         console.error('Print error', err);
         alert('❌ Print request failed. Please check printer connection and try again.');
     });
