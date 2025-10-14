@@ -68,7 +68,7 @@ if ($_POST) {
         <!-- Left Side - Logo and Branding -->
         <div class="login-left">
             <div class="login-logo">
-                <img src="assets/img/9bar-pos-logo.png" alt="9BARS COFFEE Logo">
+                <img src="assets/img/9bar-pos-logo2.png" alt="9BARS COFFEE Logo">
             </div>
             
             <h2 style="color: white; font-size: 2.5rem; margin-bottom: 10px;">
