@@ -1,4 +1,4 @@
-/* BrewTopia POS System Styles */
+/* 9barsCoffee POS System Styles */
 /* Modern, Clean Design matching the screenshots */
 
 :root {
@@ -38,24 +38,30 @@ body {
 /* Landing Page Styles */
 .landing-container {
     min-height: 100vh;
-    background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+    background: linear-gradient(180deg, #2b8545 0%, #3f9b28d3 100%); /* fresh green hero */
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 20px;
+    position: relative; /* anchor for absolute-centered inner */
+    padding: 40px 20px;
 }
 
 .landing-content {
-    text-align: center;
     color: var(--text-light);
-    max-width: 600px;
+    width: 100%;
+    max-width: 1100px;
+    display: flex;
+    flex-direction: column; /* stack, then center vertically */
+    align-items: center;
+    justify-content: center;
+    height: 100%;
 }
 
 .landing-logo {
     width: 150px;
     height: 150px;
     margin: 0 auto 30px;
-    background-color: rgba(255, 255, 255, 0.1);
+    background-color: rgb(253, 253, 253);
     border-radius: 50%;
     display: flex;
     align-items: center;
@@ -71,9 +77,10 @@ body {
 
 .landing-title {
     font-size: 3.5rem;
-    font-weight: bold;
+    font-weight: 700;
     margin-bottom: 10px;
-    text-shadow: 2px 2px 4px var(--shadow-medium);
+    line-height: 1.05;
+    text-shadow: 0 6px 18px rgba(0,0,0,0.12);
 }
 
 .landing-subtitle {
@@ -83,13 +90,13 @@ body {
 }
 
 .landing-footer {
-    margin-top: 50px;
+    margin-top: 24px; /* reduced so footer doesn't push hero out of center */
     font-size: 0.9rem;
     opacity: 0.7;
 }
 
 .btn-landing {
-    background-color: var(--accent-color);
+    background-color: #242424; /* changed to black */
     color: var(--text-light);
     padding: 15px 40px;
     border: none;
@@ -98,14 +105,14 @@ body {
     font-weight: 600;
     text-decoration: none;
     display: inline-block;
-    transition: all 0.3s ease;
-    box-shadow: 0 5px 15px rgba(230, 126, 34, 0.3);
+    transition: all 0.18s ease;
+    box-shadow: 0 8px 22px rgba(0,0,0,0.35);
 }
 
 .btn-landing:hover {
-    background-color: #d35400;
+    background-color: #1d5f33c9; /* subtle lighter black on hover */
     transform: translateY(-2px);
-    box-shadow: 0 7px 20px rgba(230, 126, 34, 0.4);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.45);
 }
 
 /* Login Page Styles */
@@ -115,6 +122,82 @@ body {
     display: flex;
 }
 
+/* New hero layout: two-column */
+.landing-inner {
+    display: grid;
+    grid-template-columns: 1fr; /* single column so content sits centered */
+    gap: 20px;
+    align-items: center;
+    justify-items: center; /* center grid items horizontally */
+    max-width: 640px; /* constrain overall hero width so it sits centered */
+    width: 100%;
+    position: absolute; /* center exactly in viewport */
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.hero-left {
+    text-align: center; /* center the left-column content */
+    padding: 20px 10px;
+    margin: 0 auto;
+    max-width: 620px;
+}
+
+.hero-right {
+    display: none; /* hide testimonial — center single column hero */
+}
+
+.testimonial-card {
+    background: rgba(255,255,255,0.15);
+    padding: 28px;
+    border-radius: 12px;
+    color: #fff;
+    max-width: 380px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.12);
+    backdrop-filter: blur(6px);
+}
+
+.testimonial-quote {
+    font-size: 1.05rem;
+    margin-bottom: 18px;
+    font-weight: 500;
+    opacity: 0.95;
+}
+
+.testimonial-author {
+    display: flex;
+    align-items: center;
+}
+
+.testimonial-avatar {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: #fff;
+    color: #074d1acc;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    margin-right: 12px;
+}
+
+.author-meta strong { display: block; font-size: 0.95rem; }
+.author-role { font-size: 0.85rem; opacity: 0.85; }
+
+/* Adjust original landing logo to sit on left in new layout */
+.landing-logo { margin: 0 auto 20px auto; width: 120px; height: 120px; }
+
+.landing-title { text-align: center; }
+.landing-subtitle { text-align: center; }
+
+@media (max-width: 900px) {
+    .landing-inner { grid-template-columns: 1fr; padding: 30px 0; }
+    .hero-right { margin-top: 20px; }
+    .landing-title { font-size: 2.4rem; }
+}
+
 .login-left {
     flex: 1;
     display: flex;
@@ -122,7 +205,7 @@ body {
     align-items: center;
     justify-content: center;
     padding: 40px;
-    background: rgba(255, 255, 255, 0.05);
+    background: #3f9b28d3;
 }
 
 .login-right {
@@ -140,11 +223,17 @@ body {
     width: 120px;
     height: 120px;
     margin-bottom: 20px;
+    background: #fff; /* white circle behind logo */
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 8px 22px rgba(0,0,0,0.12);
 }
 
 .login-logo img {
-    width: 100%;
-    height: 100%;
+    width: 72px;
+    height: 72px;
     object-fit: contain;
 }
 
@@ -206,18 +295,18 @@ body {
 .btn-login {
     width: 100%;
     padding: 15px;
-    background-color: var(--primary-color);
-    color: var(--text-light);
+    background-color: #242424; /* match index button (black) */
+    color: var(--text-muted); /* gray text as requested */
     border: none;
     border-radius: 8px;
     font-size: 1.1rem;
     font-weight: 600;
     cursor: pointer;
-    transition: all 0.3s ease;
+    transition: all 0.18s ease;
 }
 
 .btn-login:hover {
-    background-color: var(--secondary-color);
+    background-color: #2e2e2e; /* subtle lighter black on hover */
     transform: translateY(-1px);
 }
 
