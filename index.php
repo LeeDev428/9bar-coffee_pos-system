@@ -12,25 +12,29 @@
 <body>
     <div class="landing-container">
         <div class="landing-content">
-            <div class="landing-logo">
-                <img src="assets/img/9bar-pos-logo.png" alt="BrewTopia Logo">
-            </div>
-            
-            <h1 class="landing-title">
-                9BARS<br>
-                COFFEE
-            </h1>
-            
-            <p class="landing-subtitle">
-                Find the best drink to accompany your days
-            </p>
-            
-            <a href="login.php" class="btn-landing">
-                Get Started
-            </a>
-            
-            <div class="landing-footer">
-                <p>POSINVENTORY<br>Copyright © 2025</p>
+            <div class="landing-inner">
+                <div class="hero-left">
+                    <div class="landing-logo">
+                        <img src="assets/img/9bar-pos-logo2.png" alt="9Bars Logo">
+                    </div>
+
+                    <h1 class="landing-title">
+                        9BARS<br>
+                        COFFEE
+                    </h1>
+
+                    <p class="landing-subtitle">
+                        Find the best drink to accompany your days
+                    </p>
+
+                    <a href="login.php" class="btn-landing">
+                        Get Started
+                    </a>
+
+                    <div class="landing-footer">
+                        <p>POSINVENTORY<br>Copyright \u00a9 2025</p>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
