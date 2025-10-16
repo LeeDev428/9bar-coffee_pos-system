@@ -394,6 +394,11 @@ class ThermalPrinter {
             $paymentMethod = strtoupper($receiptData['payment_method']);
             $this->columns('Payment (' . $paymentMethod . '):', 'P' . number_format($receiptData['amount_paid'], 2));
             
+            // GCash Reference Number (if applicable)
+            if ($receiptData['payment_method'] === 'gcash' && !empty($receiptData['gcash_reference'])) {
+                $this->columns('GCash Ref #:', $receiptData['gcash_reference']);
+            }
+            
             // Change (if applicable)
             if ($receiptData['change_amount'] > 0) {
                 $this->columns('Change:', 'P' . number_format($receiptData['change_amount'], 2));
