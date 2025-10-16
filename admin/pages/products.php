@@ -18,7 +18,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'description' => sanitizeInput($_POST['description']),
                         'price' => floatval($_POST['price']),
                         'cost_price' => floatval($_POST['cost_price']),
-                        'barcode' => sanitizeInput($_POST['barcode']),
                         'current_stock' => intval($_POST['current_stock']),
                         'minimum_stock' => intval($_POST['minimum_stock']),
                         'maximum_stock' => intval($_POST['maximum_stock']),
@@ -80,8 +79,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'category_id' => intval($_POST['category_id']),
                         'description' => sanitizeInput($_POST['description']),
                         'price' => floatval($_POST['price']),
-                        'cost_price' => floatval($_POST['cost_price']),
-                        'barcode' => sanitizeInput($_POST['barcode'])
+                        'cost_price' => floatval($_POST['cost_price'])
                     ];
                     
                     $productManager->updateProduct($productId, $data);
@@ -455,7 +453,6 @@ tbody tr:hover {
                 <tr>
                     <th>Product Name</th>
                     <th>Category</th>
-                    <th>Barcode</th>
                     <th>Price</th>
                     <th>Cost</th>
                     <th>Stock</th>
@@ -493,7 +490,6 @@ tbody tr:hover {
                         </div>
                     </td>
                     <td><?php echo htmlspecialchars($product['category_name']); ?></td>
-                    <td><?php echo htmlspecialchars($product['barcode'] ?: 'N/A'); ?></td>
                     <td>₱<?php echo number_format($product['price'], 2); ?></td>
                     <td>₱<?php echo number_format($product['cost_price'], 2); ?></td>
                     <td>
@@ -547,10 +543,6 @@ tbody tr:hover {
                             </option>
                             <?php endforeach; ?>
                         </select>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Barcode</label>
-                        <input type="text" name="barcode" class="form-control">
                     </div>
                 </div>
                 
@@ -640,10 +632,6 @@ tbody tr:hover {
                             <?php endforeach; ?>
                         </select>
                     </div>
-                    <div class="form-group">
-                        <label class="form-label">Barcode</label>
-                        <input type="text" name="barcode" id="edit_barcode" class="form-control">
-                    </div>
                 </div>
                 
                 <div class="form-group">
@@ -718,7 +706,6 @@ function openEditModal(product) {
     document.getElementById('edit_product_id').value = product.product_id;
     document.getElementById('edit_product_name').value = product.product_name;
     document.getElementById('edit_category_id').value = product.category_id;
-    document.getElementById('edit_barcode').value = product.barcode || '';
     document.getElementById('edit_description').value = product.description || '';
     document.getElementById('edit_price').value = product.price;
     document.getElementById('edit_cost_price').value = product.cost_price;
