@@ -18,46 +18,49 @@ if ($_POST) {
     if (empty($emailOrUsername)) {
         $error = 'Please enter your email or username.';
     } else {
-        // Try to find user by email or username
         $sql = "SELECT user_id, username, email FROM users WHERE (email = ? OR username = ?) AND status = 'active' LIMIT 1";
         $user = $db->fetchOne($sql, [$emailOrUsername, $emailOrUsername]);
 
-        // We intentionally do not reveal whether the user exists. We'll still
-        // generate a token and attempt to send an email only if a user was found.
+        // Always return a generic message to avoid revealing whether the account exists
         $devResetLink = '';
         if ($user) {
-            // Generate token and insert into password_resets
             $token = bin2hex(random_bytes(16));
-            $expiresAt = date('Y-m-d H:i:s', time() + 3600); // 1 hour
-
+            $expiresAt = date('Y-m-d H:i:s', time() + 3600);
             $insertSql = "INSERT INTO password_resets (user_id, token, expires_at, created_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)";
-            $db->query($insertSql, [$user['user_id'], $token, $expiresAt]);
+            try {
+                $db->query($insertSql, [$user['user_id'], $token, $expiresAt]);
+            } catch (Exception $e) {
+                // Log and continue — the table might not exist yet in the database.
+                error_log('Failed to insert password reset token: ' . $e->getMessage());
+            }
 
-            // Build reset link
             $resetLink = sprintf('%s/reset-password.php?token=%s', rtrim((isset($_SERVER['REQUEST_SCHEME']) ? $_SERVER['REQUEST_SCHEME'] : (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' ? 'https' : 'http')) . '://' . $_SERVER['HTTP_HOST'] . dirname($_SERVER['SCRIPT_NAME']), '/') , $token);
             $devResetLink = $resetLink;
 
-            // Try to send email via mailer helper
             require_once __DIR__ . '/includes/mailer.php';
             $smtpConfig = file_exists(__DIR__ . '/includes/smtp_config.php') ? require __DIR__ . '/includes/smtp_config.php' : null;
 
+            // Attempt to send email via sendMail() which will use PHPMailer (with SMTP if enabled) or fallback to PHP mail()
+            $subject = 'Password Reset Request';
+            $body = "<p>Hello {$user['username']},</p>\n<p>We received a request to reset your password. Click the link below to reset it (expires in 1 hour):</p>\n<p><a href=\"{$resetLink}\">Reset Password</a></p>\n<p>If you didn't request this, ignore this message.</p>";
+
             $mailSent = false;
-            if (!empty($smtpConfig) && $smtpConfig['enabled']) {
-                $subject = 'Password Reset Request';
-                $body = "<p>Hello {$user['username']},</p>\n<p>We received a request to reset your password. Click the link below to reset it (expires in 1 hour):</p>\n<p><a href=\"{$resetLink}\">Reset Password</a></p>\n<p>If you didn't request this, ignore this message.</p>";
+            try {
                 $mailSent = sendMail($user['email'], $user['username'], $subject, $body);
+            } catch (Exception $e) {
+                error_log('sendMail() exception: ' . $e->getMessage());
+                $mailSent = false;
             }
 
-            // If mail was sent successfully, do not expose the link in the UI.
             if ($mailSent) {
                 $success = 'If an account with that email or username exists, a reset link has been sent.';
             } else {
-                // For development or if sending failed, show the link so it's usable
+                // Keep the generic message but provide the dev link when sending failed (helpful in local dev)
                 $success = "If an account with that email or username exists, a reset link has been sent.";
                 $success .= " For development or if email sending is not configured, use this link: <a href=\"{$devResetLink}\">Reset Password</a> (expires in 1 hour).";
+                error_log('Password reset email not sent for user_id=' . $user['user_id'] . ' email=' . $user['email']);
             }
         } else {
-            // Generic message to avoid account enumeration
             $success = 'If an account with that email or username exists, a reset link has been sent.';
         }
     }
@@ -133,71 +136,7 @@ if ($_POST) {
 
 </body>
 </html>
-<?php
-require_once 'includes/database.php';
-require_once 'includes/auth.php';
 
-try {
-    $db = new Database();
-    $auth = new Auth($db);
-} catch (Exception $e) {
-    die('Database connection failed: ' . $e->getMessage());
-}
-
-$error = '';
-$success = '';
-
-        // We intentionally do not reveal whether the user exists. We'll still
-        // generate a token and attempt to send an email only if a user was found.
-        $devResetLink = '';
-        if ($user) {
-            // Generate token and insert into password_resets
-            $token = bin2hex(random_bytes(16));
-            $expiresAt = date('Y-m-d H:i:s', time() + 3600); // 1 hour
-
-            $insertSql = "INSERT INTO password_resets (user_id, token, expires_at, created_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)";
-            $db->query($insertSql, [$user['user_id'], $token, $expiresAt]);
-
-            // Build reset link
-            $resetLink = sprintf('%s/reset-password.php?token=%s', rtrim((isset($_SERVER['REQUEST_SCHEME']) ? $_SERVER['REQUEST_SCHEME'] : (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' ? 'https' : 'http')) . '://' . $_SERVER['HTTP_HOST'] . dirname($_SERVER['SCRIPT_NAME']), '/') , $token);
-            $devResetLink = $resetLink;
-
-            // Try to send email via mailer helper
-            require_once __DIR__ . '/includes/mailer.php';
-            $smtpConfig = file_exists(__DIR__ . '/includes/smtp_config.php') ? require __DIR__ . '/includes/smtp_config.php' : null;
-
-            $mailSent = false;
-            if (!empty($smtpConfig) && $smtpConfig['enabled']) {
-                $subject = 'Password Reset Request';
-                $body = "<p>Hello {$user['username']},</p>\n<p>We received a request to reset your password. Click the link below to reset it (expires in 1 hour):</p>\n<p><a href=\"{$resetLink}\">Reset Password</a></p>\n<p>If you didn't request this, ignore this message.</p>";
-                $mailSent = sendMail($user['email'], $user['username'], $subject, $body);
-            }
-
-            // If mail was sent successfully, do not expose the link in the UI.
-            if ($mailSent) {
-                $success = 'If an account with that email or username exists, a reset link has been sent.';
-            } else {
-                // For development or if sending failed, show the link so it's usable
-                $success = "If an account with that email or username exists, a reset link has been sent. \n";
-                $success .= "For development or if email sending is not configured, use this link: <a href=\"{$devResetLink}\">Reset Password</a> (expires in 1 hour).";
-            }
-        } else {
-            // Generic message to avoid account enumeration
-            $success = 'If an account with that email or username exists, a reset link has been sent.';
-        }
-            $expiresAt = date('Y-m-d H:i:s', time() + 3600); // 1 hour
-
-            $insertSql = "INSERT INTO password_resets (user_id, token, expires_at, created_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)";
-            $db->query($insertSql, [$user['user_id'], $token, $expiresAt]);
-
-            // In production you'd email a link. For development show the link on screen.
-            $resetLink = sprintf('%s/reset-password.php?token=%s', rtrim((isset($_SERVER['REQUEST_SCHEME']) ? $_SERVER['REQUEST_SCHEME'] : (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' ? 'https' : 'http')) . '://' . $_SERVER['HTTP_HOST'] . dirname($_SERVER['SCRIPT_NAME']), '/') , $token);
-
-            $success = "A password reset link has been generated. For development, use this link: <a href=\"{$resetLink}\">Reset Password</a> (expires in 1 hour).";
-        }
-    }
-}
-?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
