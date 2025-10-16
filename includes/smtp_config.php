@@ -1,12 +1,13 @@
 <?php
-// SMTP configuration - update these values for your SMTP provider
+// SMTP configuration (placeholders). Fill these in locally and DO NOT commit real credentials.
 return [
-    'enabled' => false, // set to true to enable SMTP sending
-    'host' => 'smtp.example.com',
+    'enabled' => true, // set to true to enable SMTP
+    'host' => 'smtp.gmail.com',
     'port' => 587,
-    'username' => 'user@example.com',
-    'password' => 'yourpassword',
+    'username' => '9barscoffeee@gmail.com',
+    'password' => 'xrdnfqevfczmiodh', // 16-char app password (no spaces)
     'secure' => 'tls', // 'tls' or 'ssl' or ''
-    'from_email' => 'noreply@example.com',
-    'from_name' => '9BARS COFFEE POS'
+    'from_email' => '9barscoffeee@gmail.com',
+    'from_name' => '9BarsCoffee',
+    'debug' => 0 // Set to 2 for debugging, 0 for production
 ];
