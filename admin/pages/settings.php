@@ -44,12 +44,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
                     
                     $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
-                    
-                    $db->query("INSERT INTO users (username, email, password_hash, role, first_name, last_name, status) VALUES (?, ?, ?, ?, ?, ?, 'active')", [
-                        $username, $email, $hashedPassword, $role, $firstName, $lastName
+                    // Compose full name from first and last
+                    $fullName = trim($firstName . ' ' . $lastName);
+
+                    // Insert according to current schema (password, full_name)
+                    $db->query("INSERT INTO users (username, password, full_name, email, role, status) VALUES (?, ?, ?, ?, ?, 'active')", [
+                        $username, $hashedPassword, $fullName, $email, $role
                     ]);
                     
                     showAlert('User added successfully!', 'success');
+                } catch (PDOException $e) {
+                    // Log detailed DB error for debugging
+                    error_log('[add_user] SQL Error: ' . $e->getMessage());
+                    showAlert('Error adding user: ' . $e->getMessage(), 'error');
                 } catch (Exception $e) {
                     showAlert('Error adding user: ' . $e->getMessage(), 'error');
                 }
@@ -65,17 +72,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $lastName = sanitizeInput($_POST['last_name']);
                     $status = $_POST['status'];
                     
-                    $db->query("UPDATE users SET username = ?, email = ?, role = ?, first_name = ?, last_name = ?, status = ? WHERE user_id = ?", [
-                        $username, $email, $role, $firstName, $lastName, $status, $userId
+                    $fullName = trim($firstName . ' ' . $lastName);
+
+                    $db->query("UPDATE users SET username = ?, email = ?, role = ?, full_name = ?, status = ? WHERE user_id = ?", [
+                        $username, $email, $role, $fullName, $status, $userId
                     ]);
                     
                     // Update password if provided
                     if (!empty($_POST['password'])) {
                         $hashedPassword = password_hash($_POST['password'], PASSWORD_DEFAULT);
-                        $db->query("UPDATE users SET password_hash = ? WHERE user_id = ?", [$hashedPassword, $userId]);
+                        $db->query("UPDATE users SET password = ? WHERE user_id = ?", [$hashedPassword, $userId]);
                     }
                     
                     showAlert('User updated successfully!', 'success');
+                } catch (PDOException $e) {
+                    error_log('[update_user] SQL Error: ' . $e->getMessage());
+                    showAlert('Error updating user: ' . $e->getMessage(), 'error');
                 } catch (Exception $e) {
                     showAlert('Error updating user: ' . $e->getMessage(), 'error');
                 }
@@ -101,7 +113,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'receipt_footer' => sanitizeInput($_POST['receipt_footer']),
                         'auto_print_receipt' => isset($_POST['auto_print_receipt']) ? '1' : '0',
                         'allow_discounts' => isset($_POST['allow_discounts']) ? '1' : '0',
-                        'require_customer_name' => isset($_POST['require_customer_name']) ? '1' : '0',
                         'low_stock_alert' => intval($_POST['low_stock_alert'])
                     ];
                     
@@ -156,6 +167,15 @@ foreach ($settingsResult as $setting) {
 
 // Get users
 $users = $db->fetchAll("SELECT * FROM users ORDER BY username");
+
+// Normalize user fields for UI compatibility: split full_name into first_name/last_name
+foreach ($users as &$u) {
+    $full = trim($u['full_name'] ?? '');
+    $parts = explode(' ', $full, 2);
+    $u['first_name'] = $parts[0] ?? '';
+    $u['last_name'] = $parts[1] ?? '';
+}
+unset($u);
 
 // Get categories
 $categories = $db->fetchAll("SELECT * FROM categories ORDER BY category_name");
@@ -490,20 +510,10 @@ $categories = $db->fetchAll("SELECT * FROM categories ORDER BY category_name");
                 </div>
             </div>
             
-            <div class="form-grid">
-                <div class="form-group">
-                    <div class="checkbox-group">
-                        <input type="checkbox" name="require_customer_name" class="checkbox"
-                               <?php echo ($posSettings['require_customer_name'] ?? '0') == '1' ? 'checked' : ''; ?>>
-                        <label class="form-label">Require Customer Name</label>
-                    </div>
-                </div>
-                
-                <div class="form-group">
-                    <label class="form-label">Low Stock Alert Threshold</label>
-                    <input type="number" name="low_stock_alert" class="form-control" min="1" max="100"
-                           value="<?php echo $posSettings['low_stock_alert'] ?? '10'; ?>">
-                </div>
+            <div class="form-group">
+                <label class="form-label">Low Stock Alert Threshold</label>
+                <input type="number" name="low_stock_alert" class="form-control" min="1" max="100"
+                       value="<?php echo $posSettings['low_stock_alert'] ?? '10'; ?>">
             </div>
             
             <div style="text-align: right; margin-top: 20px; border-top: 1px solid #eee; padding-top: 15px;">
