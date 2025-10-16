@@ -166,7 +166,9 @@ if ($_POST) {
                 >
                     Sign In
                 </button>
-                
+                <div style="margin-top:10px; text-align:center;">
+                    <a href="forgot-password.php" style="color: #3498db; text-decoration: none; font-size: 0.95rem;">Forgot password?</a>
+                </div>
                 <div style="text-align: center; margin-top: 20px;">
                     <p style="color: #95a5a6; font-size: 0.9rem;">
                         Default Login:<br>
