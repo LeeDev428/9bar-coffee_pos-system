@@ -50,6 +50,11 @@ class Database {
         $stmt = $this->query($sql, $params);
         return $stmt->fetch();
     }
+
+    // Backwards-compatible alias used across the codebase
+    public function fetchRow($sql, $params = []) {
+        return $this->fetchOne($sql, $params);
+    }
     
     public function fetchValue($sql, $params = []) {
         $stmt = $this->query($sql, $params);
