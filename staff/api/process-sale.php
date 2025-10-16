@@ -25,6 +25,7 @@ $cart = $input['cart'] ?? null;
 $payment = $input['payment'] ?? null;
 $method = $input['method'] ?? 'cash';
 $userId = $input['user_id'] ?? null;
+$gcashReference = ($method === 'gcash' && isset($payment['gcash_reference'])) ? $payment['gcash_reference'] : null;
 
 if (!is_array($cart) || count($cart) === 0) {
     http_response_code(400);
@@ -45,9 +46,9 @@ try {
     $pdo->beginTransaction();
 
     // Insert into sales table
-    $stmt = $pdo->prepare("INSERT INTO sales (user_id, total_amount, payment_method, sale_date, transaction_number) VALUES (?, ?, ?, NOW(), ?)");
+    $stmt = $pdo->prepare("INSERT INTO sales (user_id, total_amount, payment_method, ref_no, sale_date, transaction_number) VALUES (?, ?, ?, ?, NOW(), ?)");
     $transactionNumber = 'TXN-' . date('YmdHis') . '-' . rand(100, 999);
-    $stmt->execute([$userId, $subtotal, $method, $transactionNumber]);
+    $stmt->execute([$userId, $subtotal, $method, $gcashReference, $transactionNumber]);
     $saleId = $pdo->lastInsertId();
 
     // Insert sale items and decrement stock for products (skip addons without product_id)
@@ -128,6 +129,7 @@ try {
                 'tax_amount' => 0,
                 'total_amount' => $subtotal,
                 'payment_method' => $method,
+                'gcash_reference' => $gcashReference, // GCash reference number
                 'amount_paid' => $payment['amount'] ?? $subtotal,
                 'change_amount' => max(0, ($payment['amount'] ?? $subtotal) - $subtotal),
                 'receipt_header' => $businessSettings['receipt_header'] ?? 'Welcome to 9Bar Coffee!',
