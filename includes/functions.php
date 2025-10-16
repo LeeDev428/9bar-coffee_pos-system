@@ -16,7 +16,9 @@ class Dashboard {
             'daily_sales' => 0,
             'quantity_sold_today' => 0,
             'total_products' => 0,
-            'critical_items' => 0
+            'critical_items' => 0,
+            'cash_sales' => 0,
+            'cashless_sales' => 0
         ];
         
         try {
@@ -26,6 +28,21 @@ class Dashboard {
                         WHERE DATE(sale_date) = ? AND payment_status = 'paid'";
             $salesResult = $this->db->fetchOne($salesSql, [$date]);
             $stats['daily_sales'] = $salesResult['daily_sales'] ?? 0;
+            
+            // Get cash sales (payment_method = 'cash')
+            $cashSql = "SELECT COALESCE(SUM(total_amount), 0) as cash_sales
+                       FROM sales 
+                       WHERE DATE(sale_date) = ? AND payment_status = 'paid' AND payment_method = 'cash'";
+            $cashResult = $this->db->fetchOne($cashSql, [$date]);
+            $stats['cash_sales'] = $cashResult['cash_sales'] ?? 0;
+            
+            // Get cashless sales (payment_method = 'gcash' or 'card' or 'digital_wallet')
+            $cashlessSql = "SELECT COALESCE(SUM(total_amount), 0) as cashless_sales
+                           FROM sales 
+                           WHERE DATE(sale_date) = ? AND payment_status = 'paid' 
+                           AND payment_method IN ('gcash', 'card', 'digital_wallet')";
+            $cashlessResult = $this->db->fetchOne($cashlessSql, [$date]);
+            $stats['cashless_sales'] = $cashlessResult['cashless_sales'] ?? 0;
             
             // Get today's quantity sold
             $quantitySql = "SELECT COALESCE(SUM(si.quantity), 0) as quantity_sold
