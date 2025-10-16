@@ -25,6 +25,15 @@ function sendMail($toEmail, $toName, $subject, $bodyHtml, $bodyText = '') {
                 $mail->Port = $smtp['port'];
             }
 
+            // Optional debug output into PHP error_log when enabled in smtp_config.php
+            if (!empty($smtp) && !empty($smtp['debug'])) {
+                // 0 = off, 1 = client messages, 2 = client and server
+                $mail->SMTPDebug = is_int($smtp['debug']) ? $smtp['debug'] : 2;
+                $mail->Debugoutput = function($str, $level) {
+                    error_log('[PHPMailer DEBUG] ' . trim($str));
+                };
+            }
+
             $mail->setFrom($smtp['from_email'] ?? 'noreply@example.com', $smtp['from_name'] ?? 'App');
             $mail->addAddress($toEmail, $toName);
             $mail->isHTML(true);
