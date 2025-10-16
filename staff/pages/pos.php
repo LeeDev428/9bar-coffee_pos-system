@@ -459,12 +459,17 @@ $grandTotal = $cartTotal + $taxAmount;
 
         <div class="payment-section">
             <div style="display:flex;gap:10px;margin-bottom:10px;align-items:center;">
-                <select id="paymentMethod" class="search-bar" style="max-width:180px;padding:8px 12px;">
+                <select id="paymentMethod" class="search-bar" style="max-width:180px;padding:8px 12px;" onchange="toggleGcashReference()">
                     <option value="cash">Cash</option>
                     <option value="gcash">GCash</option>
                 </select>
 
                 <input type="number" class="amount-input" placeholder="Amount Received" id="receivedAmount" style="flex:1;max-width:260px;">
+            </div>
+
+            <!-- GCash Reference Number (shows only when GCash is selected) -->
+            <div id="gcashReferenceSection" style="display:none;margin-bottom:10px;">
+                <input type="text" id="gcashReference" class="form-control" placeholder="GCash Reference Number (required for GCash)" style="width:100%;padding:10px;border:2px solid #ddd;border-radius:5px;background:rgba(255,255,255,0.15);color:white;">
             </div>
 
             <button id="processPaymentBtn" class="btn" style="background:#4aa76b;color:white;padding:12px;border-radius:6px;width:100%;display:flex;align-items:center;gap:10px;justify-content:center;" onclick="processPayment()">
@@ -688,7 +693,17 @@ document.addEventListener('input', function(e){
 
 function filterProducts(categoryId) { /* implement if needed */ }
 
-function processPayment() { alert('Process payment - implement server-side logic'); }
+// Toggle GCash reference number field visibility
+function toggleGcashReference() {
+    const method = document.getElementById('paymentMethod').value;
+    const gcashSection = document.getElementById('gcashReferenceSection');
+    if (method === 'gcash') {
+        gcashSection.style.display = 'block';
+    } else {
+        gcashSection.style.display = 'none';
+        document.getElementById('gcashReference').value = ''; // Clear when hidden
+    }
+}
 
 function processPayment() {
     if (!cart.length) { alert('Cart is empty'); return; }
@@ -696,6 +711,17 @@ function processPayment() {
     const amount = parseFloat(document.getElementById('receivedAmount').value || '0');
     const subtotalText = document.getElementById('subtotal').textContent.replace(/[₱,]/g,'');
     const total = parseFloat(subtotalText) || 0;
+    
+    // Validate GCash reference number when GCash is selected
+    if (method === 'gcash') {
+        const gcashRef = document.getElementById('gcashReference').value.trim();
+        if (!gcashRef) {
+            alert('Please enter GCash reference number');
+            document.getElementById('gcashReference').focus();
+            return;
+        }
+    }
+    
     if (!amount || amount < total) {
         alert('Insufficient amount received');
         return;
@@ -708,7 +734,10 @@ function processPayment() {
 
     const payload = {
         cart: cart,
-        payment: { amount: amount },
+        payment: { 
+            amount: amount,
+            gcash_reference: method === 'gcash' ? document.getElementById('gcashReference').value.trim() : null
+        },
         method: method,
         user_id: <?php echo json_encode($user['user_id'] ?? null); ?>
     };
@@ -854,6 +883,16 @@ function generateReceiptHTML(saleData, serverResponse, change) {
                 <span>₱${(saleData.payment.amount || 0).toFixed(2)}</span>
             </div>
     `;
+    
+    // Add GCash reference number if applicable
+    if (saleData.method === 'gcash' && saleData.payment.gcash_reference) {
+        html += `
+            <div style="display: flex; justify-content: space-between; margin-top: 5px; font-size: 11px; color: #555;">
+                <span>GCash Ref #:</span>
+                <span>${escapeHtml(saleData.payment.gcash_reference)}</span>
+            </div>
+        `;
+    }
     
     if (change > 0) {
         html += `
