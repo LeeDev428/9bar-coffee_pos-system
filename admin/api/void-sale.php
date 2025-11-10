@@ -3,8 +3,19 @@
  * Void Sale Transaction API
  * Cancels a sale and restores inventory with admin password confirmation
  */
+
+// Disable error display - only return JSON
+error_reporting(0);
+ini_set('display_errors', 0);
+
+// Prevent any output before JSON
+ob_start();
+
 require_once '../../includes/database.php';
 require_once '../../includes/auth.php';
+
+// Clear any output that might have been generated
+ob_end_clean();
 
 header('Content-Type: application/json');
 
@@ -153,6 +164,33 @@ try {
         $voidStmt = $pdo->prepare("UPDATE sales SET payment_status = 'voided', notes = CONCAT(COALESCE(notes, ''), '\n[VOIDED by ', ?, ' on ', NOW(), '] Reason: ', ?) WHERE sale_id = ?");
         $voidStmt->execute([$currentUser['username'], $voidReason, $saleId]);
         
+        // Log to void_history table for audit trail
+        $productsJson = json_encode(array_map(function($item) {
+            return [
+                'product_id' => $item['product_id'],
+                'quantity' => $item['quantity'],
+                'price' => $item['price'],
+                'subtotal' => $item['subtotal']
+            ];
+        }, $saleItems));
+        
+        $voidHistoryStmt = $pdo->prepare("
+            INSERT INTO void_history (
+                sale_id, voided_by_user_id, voided_by_username, voided_by_role,
+                void_reason, original_amount, original_payment_method, products_voided,
+                inventory_restored, status, admin_approved
+            ) VALUES (?, ?, ?, 'admin', ?, ?, ?, ?, 1, 'completed', 1)
+        ");
+        $voidHistoryStmt->execute([
+            $saleId,
+            $currentUser['user_id'],
+            $currentUser['username'],
+            $voidReason,
+            $sale['total_amount'],
+            $sale['payment_method'],
+            $productsJson
+        ]);
+        
         // Commit transaction
         $pdo->commit();
         
@@ -174,4 +212,3 @@ try {
         'error' => 'Error voiding sale: ' . $e->getMessage()
     ]);
 }
-?>
