@@ -254,4 +254,3 @@ function displayAlert() {
         unset($_SESSION['alert']);
     }
 }
-?>
