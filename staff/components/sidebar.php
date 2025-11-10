@@ -26,6 +26,11 @@ $current_page = basename($_SERVER['PHP_SELF'], '.php');
             <span>POINT OF SALE</span>
         </a>
         
+        <a href="sales.php" class="nav-item <?php echo ($current_page == 'sales') ? 'active' : ''; ?>">
+            <i class="fas fa-chart-line"></i>
+            <span>SALES RECORDS</span>
+        </a>
+        
         <a href="inventory.php" class="nav-item <?php echo ($current_page == 'inventory') ? 'active' : ''; ?>">
             <i class="fas fa-warehouse"></i>
             <span>INVENTORY</span>
