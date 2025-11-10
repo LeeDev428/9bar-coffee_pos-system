@@ -61,6 +61,11 @@ $current_page = basename($_SERVER['PHP_SELF'], '.php');
             <span>SALES</span>
         </a>
         
+        <a href="void-history.php" class="nav-item <?php echo ($current_page == 'void-history') ? 'active' : ''; ?>">
+            <i class="fas fa-history"></i>
+            <span>VOID HISTORY</span>
+        </a>
+        
         <a href="records.php" class="nav-item <?php echo ($current_page == 'records') ? 'active' : ''; ?>">
             <i class="fas fa-file-alt"></i>
             <span>RECORDS</span>
