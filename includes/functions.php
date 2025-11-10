@@ -22,34 +22,34 @@ class Dashboard {
         ];
         
         try {
-            // Get today's sales
+            // Get today's sales - using CURDATE() instead of ? to ensure we get today's data
             $salesSql = "SELECT COALESCE(SUM(total_amount), 0) as daily_sales
                         FROM sales 
-                        WHERE DATE(sale_date) = ? AND payment_status = 'paid'";
-            $salesResult = $this->db->fetchOne($salesSql, [$date]);
+                        WHERE DATE(sale_date) = CURDATE() AND payment_status = 'paid'";
+            $salesResult = $this->db->fetchOne($salesSql);
             $stats['daily_sales'] = $salesResult['daily_sales'] ?? 0;
             
             // Get cash sales (payment_method = 'cash')
             $cashSql = "SELECT COALESCE(SUM(total_amount), 0) as cash_sales
                        FROM sales 
-                       WHERE DATE(sale_date) = ? AND payment_status = 'paid' AND payment_method = 'cash'";
-            $cashResult = $this->db->fetchOne($cashSql, [$date]);
+                       WHERE DATE(sale_date) = CURDATE() AND payment_status = 'paid' AND payment_method = 'cash'";
+            $cashResult = $this->db->fetchOne($cashSql);
             $stats['cash_sales'] = $cashResult['cash_sales'] ?? 0;
             
-            // Get cashless sales (payment_method = 'gcash' or 'card' or 'digital_wallet')
+            // Get cashless sales (payment_method = 'gcash' only, no card)
             $cashlessSql = "SELECT COALESCE(SUM(total_amount), 0) as cashless_sales
                            FROM sales 
-                           WHERE DATE(sale_date) = ? AND payment_status = 'paid' 
-                           AND payment_method IN ('gcash', 'card', 'digital_wallet')";
-            $cashlessResult = $this->db->fetchOne($cashlessSql, [$date]);
+                           WHERE DATE(sale_date) = CURDATE() AND payment_status = 'paid' 
+                           AND payment_method = 'gcash'";
+            $cashlessResult = $this->db->fetchOne($cashlessSql);
             $stats['cashless_sales'] = $cashlessResult['cashless_sales'] ?? 0;
             
             // Get today's quantity sold
             $quantitySql = "SELECT COALESCE(SUM(si.quantity), 0) as quantity_sold
                            FROM sale_items si
                            JOIN sales s ON si.sale_id = s.sale_id
-                           WHERE DATE(s.sale_date) = ? AND s.payment_status = 'paid'";
-            $quantityResult = $this->db->fetchOne($quantitySql, [$date]);
+                           WHERE DATE(s.sale_date) = CURDATE() AND s.payment_status = 'paid'";
+            $quantityResult = $this->db->fetchOne($quantitySql);
             $stats['quantity_sold_today'] = $quantityResult['quantity_sold'] ?? 0;
             
             // Get total products
@@ -174,6 +174,24 @@ class Dashboard {
                 LIMIT ?";
         
         return $this->db->fetchAll($sql, [$limit]);
+    }
+    
+    public function getDailySoldProducts() {
+        $sql = "SELECT p.product_name, c.category_name,
+                       SUM(si.quantity) as total_quantity,
+                       SUM(si.total_price) as total_revenue,
+                       si.unit_price,
+                       p.image_path
+                FROM sale_items si
+                JOIN sales s ON si.sale_id = s.sale_id
+                JOIN products p ON si.product_id = p.product_id
+                LEFT JOIN categories c ON p.category_id = c.category_id
+                WHERE DATE(s.sale_date) = CURDATE() 
+                AND s.payment_status = 'paid'
+                GROUP BY p.product_id, p.product_name, c.category_name, si.unit_price, p.image_path
+                ORDER BY total_quantity DESC";
+        
+        return $this->db->fetchAll($sql);
     }
 }
 

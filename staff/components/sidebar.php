@@ -35,7 +35,7 @@ $current_page = basename($_SERVER['PHP_SELF'], '.php');
     </nav>
     
     <div class="sidebar-footer">
-        <a href="dashboard.php?action=logout" class="nav-item" style="color: #e74c3c;">
+        <a href="dashboard.php?action=logout" class="nav-item" style="color: white;">
             <i class="fas fa-sign-out-alt"></i>
             <span>LOG OUT</span>
         </a>

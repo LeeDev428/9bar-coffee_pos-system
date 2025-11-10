@@ -320,14 +320,6 @@ $avgTransaction = $totalTransactions > 0 ? $totalSales / $totalTransactions : 0;
         <h2 style="margin: 0; color: #2c3e50;">Records & Reports</h2>
         <p style="color: #7f8c8d; margin: 5px 0 0 0;">Business analytics and transaction history</p>
     </div>
-    <div>
-        <button class="btn btn-success" onclick="exportReport('sales')">
-            <i class="fas fa-download"></i> Export Sales
-        </button>
-        <button class="btn btn-info" onclick="exportReport('transactions')">
-            <i class="fas fa-file-excel"></i> Export Transactions
-        </button>
-    </div>
 </div>
 
 <!-- Date Filters -->

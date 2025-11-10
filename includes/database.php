@@ -2,7 +2,7 @@
 // Database Configuration
 class Database {
     private $host = 'localhost';
-    private $dbname = '9bar_pos';
+    private $dbname = '9bar_pos_v1';
     private $username = 'root';  // Default for Laragon
     private $password = '';      // Default for Laragon
     private $charset = 'utf8mb4';

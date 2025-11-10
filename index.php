@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BrewTopia - POS Inventory System</title>
+    <title>9BARs - POS Inventory System</title>
     <link rel="stylesheet" href="assets/css/style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -19,21 +19,19 @@
                     </div>
 
                     <h1 class="landing-title">
-                        9BARS<br>
+                        9BARs<br>
                         COFFEE
                     </h1>
 
                     <p class="landing-subtitle">
-                        Find the best drink to accompany your days
+                        Drink Good Coffee.
                     </p>
 
                     <a href="login.php" class="btn-landing">
                         Get Started
                     </a>
 
-                    <div class="landing-footer">
-                        <p>POSINVENTORY<br>Copyright \u00a9 2025</p>
-                    </div>
+                
                 </div>
             </div>
         </div>

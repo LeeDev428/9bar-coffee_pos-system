@@ -56,11 +56,11 @@ $productChart = $dashboard->getProductQuantityChart();
     </div>
 </div>
 
-<!-- Cash vs Cashless Stats -->
-<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px;">
+<!-- Cash vs Cashless Stats (Below the 4 boxes) -->
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px; margin-top: 20px;">
     <div class="stat-card" style="background: linear-gradient(135deg, #27ae60 0%, #229954 100%);">
         <div class="stat-header">
-            <h3 class="stat-title" style="color: white;">💵 Cash Sales (On Hand)</h3>
+            <h3 class="stat-title" style="color: white;">💵 Cash Sales</h3>
             <div class="stat-icon" style="background: rgba(255,255,255,0.2);">
                 <i class="fas fa-money-bill-wave" style="color: white;"></i>
             </div>
@@ -70,7 +70,7 @@ $productChart = $dashboard->getProductQuantityChart();
     
     <div class="stat-card" style="background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);">
         <div class="stat-header">
-            <h3 class="stat-title" style="color: white;">📱 Cashless Sales (GCash/Card)</h3>
+            <h3 class="stat-title" style="color: white;">📱 GCash Sales</h3>
             <div class="stat-icon" style="background: rgba(255,255,255,0.2);">
                 <i class="fas fa-mobile-alt" style="color: white;"></i>
             </div>

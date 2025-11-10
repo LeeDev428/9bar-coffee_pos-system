@@ -51,27 +51,158 @@ try {
     $stmt->execute([$userId, $subtotal, $method, $gcashReference, $transactionNumber]);
     $saleId = $pdo->lastInsertId();
 
-    // Insert sale items and decrement stock for products (skip addons without product_id)
+    // Insert sale items and decrement stock for products and addons
     $productManager = new ProductManager($pdo);
 
     $itemStmt = $pdo->prepare("INSERT INTO sale_items (sale_id, product_id, unit_price, quantity, total_price, subtotal) VALUES (?, ?, ?, ?, ?, ?)");
+    
     foreach ($cart as $item) {
         $pid = $item['id'] ?? null;
         $price = (float)($item['price'] ?? 0);
         $qty = (int)($item['quantity'] ?? 1);
         $totalPrice = $price * $qty;
 
-        // Skip addon items for database insert (they don't have real product_id)
         // Only insert actual products with numeric IDs
         if ($pid && preg_match('/^\d+$/', $pid)) {
-            $itemStmt->execute([$saleId, $pid, $price, $qty, $totalPrice, $totalPrice]);
-        }
-        // Note: Addons will still appear on receipt but won't be stored as separate line items
+            // Check if this product is in "Buy 1 Take 1" category
+            $categoryCheck = $pdo->prepare("SELECT c.category_name FROM products p JOIN categories c ON p.category_id = c.category_id WHERE p.product_id = ?");
+            $categoryCheck->execute([$pid]);
+            $categoryResult = $categoryCheck->fetch(PDO::FETCH_ASSOC);
+            $categoryName = $categoryResult['category_name'] ?? '';
+            
+            // Determine actual stock quantity to deduct
+            // For "Buy 1 Take 1", we deduct 2 cups per quantity ordered
+            $stockQty = $qty * 0;
+            if (stripos($categoryName, 'B1T1') !== false || stripos($categoryName, 'B1T1') !== false) {
+                $stockQty = $qty * 1; // Use 2 cups per order quantity
+            }
 
-        // decrement stock only if product id looks like a numeric product (not addon id)
-        if ($pid && preg_match('/^\d+$/', $pid)) {
-            // Stock will be automatically decremented by the database trigger
-            // update_inventory_on_sale trigger handles this automatically
+            // Check current cup stock for this product before committing
+            $stockCheck = $pdo->prepare("SELECT i.current_stock, p.product_name FROM inventory i JOIN products p ON i.product_id = p.product_id WHERE i.product_id = ?");
+            $stockCheck->execute([$pid]);
+            $stockRow = $stockCheck->fetch(PDO::FETCH_ASSOC);
+            $currentStock = isset($stockRow['current_stock']) ? (int)$stockRow['current_stock'] : 0;
+            $productNameForMsg = $stockRow['product_name'] ?? ('Product ID ' . $pid);
+
+            if ($currentStock < $stockQty) {
+                // Not enough cups to fulfill this line item - rollback and return error
+                if ($pdo->inTransaction()) $pdo->rollBack();
+                http_response_code(400);
+                echo json_encode([
+                    'success' => false,
+                    'message' => sprintf('Insufficient cups for "%s". Available: %d cups, Required: %d cups', $productNameForMsg, $currentStock, $stockQty)
+                ]);
+                exit;
+            }
+
+            // Insert sale item with display quantity (what customer ordered)
+            $itemStmt->execute([$saleId, $pid, $price, $qty, $totalPrice, $totalPrice]);
+
+            // Manually decrement inventory with the actual stock quantity used
+            $updateStock = $pdo->prepare("UPDATE inventory SET current_stock = current_stock - ? WHERE product_id = ?");
+            $updateStock->execute([$stockQty, $pid]);
+            
+            // Decrement ingredients based on product_ingredients table
+            $productIngredientsCheck = $pdo->prepare("
+                SELECT pi.ingredient_id, pi.quantity_per_unit, pi.unit, i.ingredient_name, i.current_stock 
+                FROM product_ingredients pi
+                JOIN ingredients i ON pi.ingredient_id = i.ingredient_id
+                WHERE pi.product_id = ?
+            ");
+            $productIngredientsCheck->execute([$pid]);
+            $productIngredients = $productIngredientsCheck->fetchAll(PDO::FETCH_ASSOC);
+            
+            if ($productIngredients && count($productIngredients) > 0) {
+                $ingredientStmt = $pdo->prepare("UPDATE ingredients SET current_stock = current_stock - ? WHERE ingredient_id = ?");
+                foreach ($productIngredients as $ingredient) {
+                    $ingredientId = $ingredient['ingredient_id'];
+                    $ingredientQty = (float)$ingredient['quantity_per_unit'];
+                    $ingredientName = $ingredient['ingredient_name'];
+                    $ingredientStock = (float)$ingredient['current_stock'];
+                    
+                    // Multiply ingredient quantity by product quantity
+                    $totalIngredientQty = $ingredientQty * $qty;
+                    
+                    if ($ingredientStock < $totalIngredientQty) {
+                        if ($pdo->inTransaction()) $pdo->rollBack();
+                        http_response_code(400);
+                        echo json_encode([
+                            'success' => false,
+                            'message' => sprintf('Insufficient stock for ingredient "%s". Available: %.2f, Required: %.2f', $ingredientName, $ingredientStock, $totalIngredientQty)
+                        ]);
+                        exit;
+                    }
+                    
+                    $ingredientStmt->execute([$totalIngredientQty, $ingredientId]);
+                }
+            }
+            
+            // Decrement add-ons stock for this product
+            if (isset($item['addons']) && is_array($item['addons']) && count($item['addons']) > 0) {
+                $addonStmt = $pdo->prepare("UPDATE addons SET current_stock = current_stock - ? WHERE addon_id = ?");
+                foreach ($item['addons'] as $addon) {
+                    $addonId = $addon['id'] ?? null;
+                    $addonQty = (int)($addon['quantity'] ?? 1);
+                    // Multiply addon quantity by product quantity
+                    $totalAddonQty = $addonQty * $qty;
+                    
+                    if ($addonId && $totalAddonQty > 0) {
+                        // Check addon stock first
+                        $addonCheck = $pdo->prepare("SELECT current_stock, addon_name FROM addons WHERE addon_id = ?");
+                        $addonCheck->execute([$addonId]);
+                        $addonRow = $addonCheck->fetch(PDO::FETCH_ASSOC);
+                        $addonStock = isset($addonRow['current_stock']) ? (int)$addonRow['current_stock'] : 0;
+                        $addonName = $addonRow['addon_name'] ?? 'Addon';
+                        
+                        if ($addonStock < $totalAddonQty) {
+                            if ($pdo->inTransaction()) $pdo->rollBack();
+                            http_response_code(400);
+                            echo json_encode([
+                                'success' => false,
+                                'message' => sprintf('Insufficient stock for "%s". Available: %d, Required: %d', $addonName, $addonStock, $totalAddonQty)
+                            ]);
+                            exit;
+                        }
+                        
+                        $addonStmt->execute([$totalAddonQty, $addonId]);
+                    }
+                }
+            }
+            
+            // Decrement packaging supplies based on product_packaging table
+            $productPackagingCheck = $pdo->prepare("
+                SELECT pp.supply_id, pp.quantity_per_unit, ps.item_name, ps.current_stock, ps.unit
+                FROM product_packaging pp
+                JOIN packaging_supplies ps ON pp.supply_id = ps.supply_id
+                WHERE pp.product_id = ?
+            ");
+            $productPackagingCheck->execute([$pid]);
+            $productPackaging = $productPackagingCheck->fetchAll(PDO::FETCH_ASSOC);
+            
+            if ($productPackaging && count($productPackaging) > 0) {
+                $packagingUpdateStmt = $pdo->prepare("UPDATE packaging_supplies SET current_stock = current_stock - ? WHERE supply_id = ?");
+                foreach ($productPackaging as $packaging) {
+                    $supplyId = $packaging['supply_id'];
+                    $packagingQty = (float)$packaging['quantity_per_unit'];
+                    $packagingName = $packaging['item_name'];
+                    $packagingStock = (float)$packaging['current_stock'];
+                    
+                    // Multiply packaging quantity by product quantity
+                    $totalPackagingQty = $packagingQty * $qty;
+                    
+                    if ($packagingStock < $totalPackagingQty) {
+                        if ($pdo->inTransaction()) $pdo->rollBack();
+                        http_response_code(400);
+                        echo json_encode([
+                            'success' => false,
+                            'message' => sprintf('Insufficient stock for packaging "%s". Available: %.2f, Required: %.2f', $packagingName, $packagingStock, $totalPackagingQty)
+                        ]);
+                        exit;
+                    }
+                    
+                    $packagingUpdateStmt->execute([$totalPackagingQty, $supplyId]);
+                }
+            }
         }
     }
 
@@ -117,8 +248,8 @@ try {
             
             // Prepare receipt data
             $receiptData = [
-                'business_name' => $businessSettings['business_name'] ?? '9BARS COFFEE',
-                'business_address' => $businessSettings['business_address'] ?? '0099 F.C. Tuazon Street, Pateros, Philippines 1620',
+                'business_name' => $businessSettings['business_name'] ?? '9BARs COFFEE',
+                'business_address' => $businessSettings['business_address'] ?? '99 F.C. Tuazon Street, Pateros, Philippines 1620',
                 'business_phone' => $businessSettings['business_phone'] ?? '09391288505',
                 'sale_id' => $saleId,
                 'transaction_number' => 'TXN-' . date('Ymd') . '-' . str_pad($saleId, 4, '0', STR_PAD_LEFT),
@@ -132,8 +263,9 @@ try {
                 'gcash_reference' => $gcashReference, // GCash reference number
                 'amount_paid' => $payment['amount'] ?? $subtotal,
                 'change_amount' => max(0, ($payment['amount'] ?? $subtotal) - $subtotal),
-                'receipt_header' => $businessSettings['receipt_header'] ?? 'Welcome to 9Bar Coffee!',
-                'receipt_footer' => $businessSettings['receipt_footer'] ?? 'Thank you for your business!\nPlease come again!'
+                'receipt_header' => $businessSettings['receipt_header'] ?? 'Welcome to 9BARs Coffee!',
+                'receipt_footer' => $businessSettings['receipt_footer'] ?? 'Thank you for visiting 9BARs Coffee! 
+Please come again!'
             ];
             
             // Add items to receipt

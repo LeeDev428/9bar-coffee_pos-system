@@ -48,7 +48,7 @@ $categories = $db->fetchAll("SELECT * FROM categories ORDER BY category_name");
     border-radius: 8px;
     padding: 20px;
     text-align: center;
-    border-left: 4px solid #3b2f2b;
+    border-left: 4px solid #3E363F;
 }
 
 .stat-box.reorder {
@@ -62,7 +62,7 @@ $categories = $db->fetchAll("SELECT * FROM categories ORDER BY category_name");
 .stat-number {
     font-size: 2.5em;
     font-weight: 700;
-    color: #3b2f2b;
+    color: #3E363F;
     margin: 0;
 }
 
@@ -113,7 +113,7 @@ $categories = $db->fetchAll("SELECT * FROM categories ORDER BY category_name");
 }
 
 .table-header {
-    background: #3b2f2b;
+    background: #3E363F;
     color: white;
     padding: 15px 20px;
     font-weight: 600;
@@ -130,7 +130,7 @@ $categories = $db->fetchAll("SELECT * FROM categories ORDER BY category_name");
     padding: 12px;
     text-align: left;
     font-weight: 600;
-    color: #3b2f2b;
+    color: #3E363F;
     border-bottom: 2px solid #dee2e6;
 }
 

@@ -60,7 +60,7 @@ $currentUser = $auth->getCurrentUser();
         .sidebar {
             width: 240px;
             height: 100vh;
-            background: linear-gradient(135deg,#3b2f2b 0%,#5a3f36 100%); /* coffee gradient */
+            background: linear-gradient(135deg, #2d7a1f 0%, #1e5915 100%); /* green gradient */
             position: fixed;
             left: 0;
             top: 0;
@@ -78,12 +78,12 @@ $currentUser = $auth->getCurrentUser();
             width: 50px;
             height: 50px;
             border-radius: 50%;
-            background: #c79a6e; /* caramel avatar */
+            background: #3f9b28; /* green avatar */
             display: flex;
             align-items: center;
             justify-content: center;
             margin: 0 auto 10px;
-            color: #3b2f2b;
+            color: white;
             font-size: 20px;
         }
 
@@ -119,7 +119,7 @@ $currentUser = $auth->getCurrentUser();
 
         .nav-item:hover,
         .nav-item.active {
-            background: rgba(199,154,110,0.18); /* soft caramel highlight */
+            background: rgba(63, 155, 40, 0.25); /* soft green highlight */
             color: white;
             text-decoration: none;
         }
@@ -155,7 +155,7 @@ $currentUser = $auth->getCurrentUser();
         .header-title {
             font-size: 18px;
             font-weight: 600;
-            color: #3b2f2b;
+            color: #3E363F;
             margin: 0;
             text-transform: uppercase;
             letter-spacing: 0.5px;
@@ -181,7 +181,7 @@ $currentUser = $auth->getCurrentUser();
         }
 
         .stat-card {
-            background: linear-gradient(135deg,#5a3f36 0%,#3b2f2b 100%);
+            background: linear-gradient(135deg, #3E363F 0%, #2d2830 100%);
             border-radius: 8px;
             padding: 20px 15px;
             text-align: center;

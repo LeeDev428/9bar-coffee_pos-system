@@ -17,7 +17,11 @@ $page_title = $page_titles[$current_page] ?? ($page_title ?? 'DASHBOARD');
         <div>
             <h1 class="header-title"><?php echo $page_title; ?></h1>
             <p class="header-subtitle">
-                <?php echo date('D, M d, Y h:i:s A'); ?>
+            <?php
+date_default_timezone_set('Asia/Manila'); // Make sure time is correct
+echo date('D, M d, Y h:i:s A');
+?>
+
             </p>
         </div>
         <div style="color: #7f8c8d; font-size: 0.9rem;">

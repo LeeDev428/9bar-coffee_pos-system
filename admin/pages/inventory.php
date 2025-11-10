@@ -136,7 +136,49 @@ $totalValue = array_sum(array_map(function($item) { return $item['current_stock'
     display: flex;
     justify-content: space-between;
     align-items: center;
+    margin-bottom: 20px;
+}
+
+.inventory-tabs {
+    display: flex;
+    gap: 5px;
     margin-bottom: 30px;
+    background: white;
+    padding: 10px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.tab-item {
+    flex: 1;
+    padding: 12px 20px;
+    text-align: center;
+    text-decoration: none;
+    color: #6c757d;
+    border-radius: 6px;
+    font-weight: 500;
+    font-size: 14px;
+    transition: all 0.3s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border: 2px solid transparent;
+}
+
+.tab-item:hover {
+    background: #f8f9fa;
+    color: #495057;
+}
+
+.tab-item.active {
+    background: #3498db;
+    color: white;
+    border-color: #2980b9;
+}
+
+.tab-item i {
+    font-size: 16px;
 }
 
 .inventory-stats {
@@ -387,14 +429,6 @@ tbody tr:hover {
     <div>
         <h2 style="margin: 0; color: #2c3e50;">Inventory Management</h2>
         <p style="color: #7f8c8d; margin: 5px 0 0 0;">Monitor and manage your stock levels</p>
-    </div>
-    <div>
-        <button class="btn btn-success" onclick="showBulkReorderModal()">
-            <i class="fas fa-shopping-cart"></i> Bulk Reorder
-        </button>
-        <button class="btn btn-info" onclick="exportInventory()">
-            <i class="fas fa-download"></i> Export
-        </button>
     </div>
 </div>
 

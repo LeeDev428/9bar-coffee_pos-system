@@ -21,7 +21,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'current_stock' => intval($_POST['current_stock']),
                         'minimum_stock' => intval($_POST['minimum_stock']),
                         'maximum_stock' => intval($_POST['maximum_stock']),
-                        'reorder_level' => intval($_POST['reorder_level'])
+                        'reorder_level' => intval($_POST['reorder_level']),
+                        'requires_ice' => isset($_POST['requires_ice']) ? 1 : 0,
+                        'main_ingredient_id' => !empty($_POST['main_ingredient_id']) ? intval($_POST['main_ingredient_id']) : null
                     ];
 
                     // Handle uploaded product image (optional)
@@ -52,6 +54,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
 
                     $productId = $productManager->addProduct($data);
+                    
+                    // Save product ingredients
+                    if (!empty($_POST['ingredients']) && is_array($_POST['ingredients'])) {
+                        foreach ($_POST['ingredients'] as $ing) {
+                            if (!empty($ing['ingredient_id']) && !empty($ing['quantity'])) {
+                                $db->query("INSERT INTO product_ingredients (product_id, ingredient_id, quantity_per_unit, unit) VALUES (?, ?, ?, ?)", [
+                                    $productId,
+                                    intval($ing['ingredient_id']),
+                                    floatval($ing['quantity']),
+                                    sanitizeInput($ing['unit'] ?? '')
+                                ]);
+                            }
+                        }
+                    }
+                    
+                    // Save product packaging
+                    if (!empty($_POST['packaging']) && is_array($_POST['packaging'])) {
+                        foreach ($_POST['packaging'] as $pkg) {
+                            if (!empty($pkg['supply_id']) && !empty($pkg['quantity'])) {
+                                $db->query("INSERT INTO product_packaging (product_id, supply_id, quantity_per_unit) VALUES (?, ?, ?)", [
+                                    $productId,
+                                    intval($pkg['supply_id']),
+                                    floatval($pkg['quantity'])
+                                ]);
+                            }
+                        }
+                    }
+                    
                     showAlert('Product added successfully!', 'success');
                 } catch (Exception $e) {
                     showAlert('Error adding product: ' . $e->getMessage(), 'error');
@@ -71,6 +101,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
                 break;
                 
+            case 'delete_category':
+                try {
+                    $categoryId = intval($_POST['category_id']);
+                    
+                    // Check if category has products
+                    $productCount = $db->fetchOne("SELECT COUNT(*) as count FROM products WHERE category_id = ? AND status = 'active'", [$categoryId]);
+                    
+                    if ($productCount['count'] > 0) {
+                        throw new Exception('Cannot delete category. It has ' . $productCount['count'] . ' active product(s). Please reassign or delete the products first.');
+                    }
+                    
+                    // Delete the category
+                    $db->query("DELETE FROM categories WHERE category_id = ?", [$categoryId]);
+                    showAlert('Category deleted successfully!', 'success');
+                } catch (Exception $e) {
+                    showAlert('Error deleting category: ' . $e->getMessage(), 'error');
+                }
+                break;
+                
             case 'edit_product':
                 try {
                     $productId = intval($_POST['product_id']);
@@ -84,47 +133,50 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     
                     $productManager->updateProduct($productId, $data);
                     
-                    // Update inventory if provided
-                    if (isset($_POST['current_stock'])) {
-                        $inventoryData = [
-                            'current_stock' => intval($_POST['current_stock']),
-                            'minimum_stock' => intval($_POST['minimum_stock']),
-                            'maximum_stock' => intval($_POST['maximum_stock']),
-                            'reorder_level' => intval($_POST['reorder_level'])
-                        ];
-                        
-                        $db->query("UPDATE inventory SET current_stock = ?, minimum_stock = ?, maximum_stock = ?, reorder_level = ? WHERE product_id = ?", [
-                            $inventoryData['current_stock'],
-                            $inventoryData['minimum_stock'],
-                            $inventoryData['maximum_stock'],
-                            $inventoryData['reorder_level'],
-                            $productId
-                        ]);
+                    // Update stock levels (separate from product data) - with defaults
+                    $current_stock = isset($_POST['current_stock']) && $_POST['current_stock'] !== '' ? intval($_POST['current_stock']) : 0;
+                    $minimum_stock = isset($_POST['minimum_stock']) && $_POST['minimum_stock'] !== '' ? intval($_POST['minimum_stock']) : 5;
+                    $maximum_stock = isset($_POST['maximum_stock']) && $_POST['maximum_stock'] !== '' ? intval($_POST['maximum_stock']) : 100;
+                    $reorder_level = isset($_POST['reorder_level']) && $_POST['reorder_level'] !== '' ? intval($_POST['reorder_level']) : 10;
+                    
+                    $db->query("UPDATE inventory SET current_stock = ?, minimum_stock = ?, maximum_stock = ?, reorder_level = ? WHERE product_id = ?", [
+                        $current_stock,
+                        $minimum_stock,
+                        $maximum_stock,
+                        $reorder_level,
+                        $productId
+                    ]);
+                    
+                    // Update product ingredients
+                    // First, delete existing connections
+                    $db->query("DELETE FROM product_ingredients WHERE product_id = ?", [$productId]);
+                    if (!empty($_POST['edit_ingredients']) && is_array($_POST['edit_ingredients'])) {
+                        foreach ($_POST['edit_ingredients'] as $ing) {
+                            if (!empty($ing['ingredient_id']) && !empty($ing['quantity'])) {
+                                $db->query("INSERT INTO product_ingredients (product_id, ingredient_id, quantity_per_unit, unit) VALUES (?, ?, ?, ?)", [
+                                    $productId,
+                                    intval($ing['ingredient_id']),
+                                    floatval($ing['quantity']),
+                                    sanitizeInput($ing['unit'] ?? '')
+                                ]);
+                            }
+                        }
                     }
                     
-                        // Handle uploaded image for edit
-                        if (!empty($_FILES['product_image_edit']) && $_FILES['product_image_edit']['error'] === UPLOAD_ERR_OK) {
-                            $uploadDir = __DIR__ . '/../../assets/img/products/';
-                            if (!is_dir($uploadDir)) mkdir($uploadDir, 0755, true);
-                            $tmpName = $_FILES['product_image_edit']['tmp_name'];
-                            $origName = basename($_FILES['product_image_edit']['name']);
-                            $ext = pathinfo($origName, PATHINFO_EXTENSION);
-                            $allowed = ['jpg','jpeg','png','gif','webp'];
-                            if (!in_array(strtolower($ext), $allowed)) {
-                                throw new Exception('Unsupported image type. Allowed: jpg, png, gif, webp');
+                    // Update product packaging
+                    // First, delete existing connections
+                    $db->query("DELETE FROM product_packaging WHERE product_id = ?", [$productId]);
+                    if (!empty($_POST['edit_packaging']) && is_array($_POST['edit_packaging'])) {
+                        foreach ($_POST['edit_packaging'] as $pkg) {
+                            if (!empty($pkg['supply_id']) && !empty($pkg['quantity'])) {
+                                $db->query("INSERT INTO product_packaging (product_id, supply_id, quantity_per_unit) VALUES (?, ?, ?)", [
+                                    $productId,
+                                    intval($pkg['supply_id']),
+                                    floatval($pkg['quantity'])
+                                ]);
                             }
-                            $safeName = preg_replace('/[^a-zA-Z0-9-_\.]/', '_', pathinfo($origName, PATHINFO_FILENAME));
-                            $newName = $safeName . '_' . time() . '.' . $ext;
-                            $dest = $uploadDir . $newName;
-                            if (!move_uploaded_file($tmpName, $dest)) {
-                                throw new Exception('Failed to move uploaded image');
-                            }
-                            // update products table image_path
-                            $db->query("UPDATE products SET image_path = ? WHERE product_id = ?", [$newName, $productId]);
-                        } elseif (isset($_POST['edit_remove_image']) && $_POST['edit_remove_image'] == '1') {
-                            // Remove image flag: clear image_path
-                            $db->query("UPDATE products SET image_path = NULL WHERE product_id = ?", [$productId]);
                         }
+                    }
                     
                     showAlert('Product updated successfully!', 'success');
                 } catch (Exception $e) {
@@ -157,6 +209,12 @@ $products = $db->fetchAll("
 
 // Get categories for dropdowns
 $categories = $db->fetchAll("SELECT * FROM categories ORDER BY category_name");
+
+// Get ingredients for main ingredient dropdown
+$ingredients = $db->fetchAll("SELECT ingredient_id, ingredient_name, unit, current_stock FROM ingredients WHERE status = 'active' ORDER BY ingredient_name");
+
+// Get all packaging supplies
+$packagingSupplies = $db->fetchAll("SELECT supply_id, item_name, unit, current_stock FROM packaging_supplies WHERE status = 'active' ORDER BY item_name");
 ?>
 
 <style>
@@ -405,12 +463,60 @@ tbody tr:hover {
         </div>
     </div>
     <div style="display:flex; gap:10px; align-items:center;">
-        <button class="btn btn-secondary" onclick="openAddCategoryModal()" style="background:#6c757d;color:white;">
-            <i class="fas fa-folder-plus"></i> Add Category
+        <button class="btn btn-secondary" onclick="openManageCategoriesModal()" style="background:#6c757d;color:white;">
+            <i class="fas fa-folder"></i> Manage Categories
         </button>
         <button class="btn btn-primary" onclick="openAddModal()">
             <i class="fas fa-plus"></i> Add New Product
         </button>
+    </div>
+</div>
+
+<!-- Manage Categories Modal -->
+<div id="manageCategoriesModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Manage Categories</h3>
+            <span class="close" onclick="closeModal('manageCategoriesModal')">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div style="margin-bottom: 20px;">
+                <button class="btn btn-success" onclick="openAddCategoryModal()">
+                    <i class="fas fa-plus"></i> Add New Category
+                </button>
+            </div>
+            
+            <table style="width: 100%;">
+                <thead>
+                    <tr>
+                        <th style="padding: 10px; border-bottom: 2px solid #ddd;">Category Name</th>
+                        <th style="padding: 10px; border-bottom: 2px solid #ddd; text-align: center;">Products</th>
+                        <th style="padding: 10px; border-bottom: 2px solid #ddd; text-align: center;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($categories as $category): ?>
+                    <?php 
+                        $productCount = $db->fetchOne("SELECT COUNT(*) as count FROM products WHERE category_id = ? AND status = 'active'", [$category['category_id']]);
+                    ?>
+                    <tr>
+                        <td style="padding: 10px; border-bottom: 1px solid #eee;">
+                            <strong><?php echo htmlspecialchars($category['category_name']); ?></strong>
+                        </td>
+                        <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: center;">
+                            <?php echo $productCount['count']; ?> products
+                        </td>
+                        <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: center;">
+                            <button class="btn btn-danger btn-sm" 
+                                    onclick="deleteCategory(<?php echo $category['category_id']; ?>, '<?php echo htmlspecialchars($category['category_name']); ?>', <?php echo $productCount['count']; ?>)">
+                                <i class="fas fa-trash"></i> Delete
+                            </button>
+                        </td>
+                    </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
 
@@ -434,7 +540,7 @@ tbody tr:hover {
             </select>
         </div>
         <div class="filter-group">
-            <label>Stock Status:</label>
+            <label>Cups Stock Status:</label>
             <select class="form-control" id="stockFilter" onchange="filterProducts()" style="width: 150px;">
                 <option value="">All Stock Levels</option>
                 <option value="low">Low Stock</option>
@@ -455,8 +561,8 @@ tbody tr:hover {
                     <th>Category</th>
                     <th>Price</th>
                     <th>Cost</th>
-                    <th>Stock</th>
-                    <th>Min Stock</th>
+                    <th>Cups Stock</th>
+                    <th>Min Cups Stock</th>
                     <th>Status</th>
                     <th>Actions</th>
                 </tr>
@@ -532,18 +638,16 @@ tbody tr:hover {
                     <input type="text" name="product_name" class="form-control" required>
                 </div>
                 
-                <div class="form-row">
-                    <div class="form-group">
-                        <label class="form-label">Category *</label>
-                        <select name="category_id" class="form-control" required>
-                            <option value="">Select Category</option>
-                            <?php foreach ($categories as $category): ?>
-                            <option value="<?php echo $category['category_id']; ?>">
-                                <?php echo htmlspecialchars($category['category_name']); ?>
-                            </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
+                <div class="form-group">
+                    <label class="form-label">Category *</label>
+                    <select name="category_id" class="form-control" required>
+                        <option value="">Select Category</option>
+                        <?php foreach ($categories as $category): ?>
+                        <option value="<?php echo $category['category_id']; ?>">
+                            <?php echo htmlspecialchars($category['category_name']); ?>
+                        </option>
+                        <?php endforeach; ?>
+                    </select>
                 </div>
                 
                 <div class="form-group">
@@ -573,24 +677,50 @@ tbody tr:hover {
                 
                 <div class="form-row">
                     <div class="form-group">
-                        <label class="form-label">Initial Stock *</label>
+                        <label class="form-label">Initial Cups Stock *</label>
                         <input type="number" name="current_stock" class="form-control" required>
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Minimum Stock *</label>
+                        <label class="form-label">Minimum Cups Stock *</label>
                         <input type="number" name="minimum_stock" class="form-control" value="5" required>
                     </div>
                 </div>
                 
                 <div class="form-row">
                     <div class="form-group">
-                        <label class="form-label">Maximum Stock</label>
+                        <label class="form-label">Maximum Cups Stock</label>
                         <input type="number" name="maximum_stock" class="form-control" value="100">
                     </div>
                     <div class="form-group">
                         <label class="form-label">Reorder Level</label>
                         <input type="number" name="reorder_level" class="form-control" value="10">
                     </div>
+                </div>
+                
+                <!-- Ingredients Assignment -->
+                <div class="form-group" style="background: #f8f9fa; padding: 15px; border-radius: 6px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <label class="form-label" style="margin-bottom: 0;">
+                            <i class="fas fa-leaf" style="color: #27ae60;"></i> Ingredients Used
+                        </label>
+                        <button type="button" class="btn btn-success btn-sm" onclick="addIngredientRow()">
+                            <i class="fas fa-plus"></i> Add Ingredient
+                        </button>
+                    </div>
+                    <div id="ingredientsContainer"></div>
+                </div>
+                
+                <!-- Packaging Supplies Assignment -->
+                <div class="form-group" style="background: #f8f9fa; padding: 15px; border-radius: 6px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <label class="form-label" style="margin-bottom: 0;">
+                            <i class="fas fa-box" style="color: #e67e22;"></i> Packaging & Supplies
+                        </label>
+                        <button type="button" class="btn btn-success btn-sm" onclick="addPackagingRow()">
+                            <i class="fas fa-plus"></i> Add Supply
+                        </button>
+                    </div>
+                    <div id="packagingContainer"></div>
                 </div>
                 
                 <div style="text-align: right; margin-top: 20px; border-top: 1px solid #eee; padding-top: 15px;">
@@ -621,17 +751,15 @@ tbody tr:hover {
                     <input type="text" name="product_name" id="edit_product_name" class="form-control" required>
                 </div>
                 
-                <div class="form-row">
-                    <div class="form-group">
-                        <label class="form-label">Category *</label>
-                        <select name="category_id" id="edit_category_id" class="form-control" required>
-                            <?php foreach ($categories as $category): ?>
-                            <option value="<?php echo $category['category_id']; ?>">
-                                <?php echo htmlspecialchars($category['category_name']); ?>
-                            </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
+                <div class="form-group">
+                    <label class="form-label">Category *</label>
+                    <select name="category_id" id="edit_category_id" class="form-control" required>
+                        <?php foreach ($categories as $category): ?>
+                        <option value="<?php echo $category['category_id']; ?>">
+                            <?php echo htmlspecialchars($category['category_name']); ?>
+                        </option>
+                        <?php endforeach; ?>
+                    </select>
                 </div>
                 
                 <div class="form-group">
@@ -652,11 +780,11 @@ tbody tr:hover {
                 
                 <div class="form-row">
                     <div class="form-group">
-                        <label class="form-label">Current Stock</label>
+                        <label class="form-label">Current Cups Stock</label>
                         <input type="number" name="current_stock" id="edit_current_stock" class="form-control">
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Minimum Stock</label>
+                        <label class="form-label">Minimum Cups Stock</label>
                         <input type="number" name="minimum_stock" id="edit_minimum_stock" class="form-control">
                     </div>
                 </div>
@@ -673,13 +801,39 @@ tbody tr:hover {
                 
                 <div class="form-row">
                     <div class="form-group">
-                        <label class="form-label">Maximum Stock</label>
+                        <label class="form-label">Maximum Cups Stock</label>
                         <input type="number" name="maximum_stock" id="edit_maximum_stock" class="form-control">
                     </div>
                     <div class="form-group">
                         <label class="form-label">Reorder Level</label>
                         <input type="number" name="reorder_level" id="edit_reorder_level" class="form-control">
                     </div>
+                </div>
+                
+                <!-- Ingredients Assignment -->
+                <div class="form-group" style="background: #f8f9fa; padding: 15px; border-radius: 6px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <label class="form-label" style="margin-bottom: 0;">
+                            <i class="fas fa-leaf" style="color: #27ae60;"></i> Ingredients Used
+                        </label>
+                        <button type="button" class="btn btn-success btn-sm" onclick="addEditIngredientRow()">
+                            <i class="fas fa-plus"></i> Add Ingredient
+                        </button>
+                    </div>
+                    <div id="editIngredientsContainer"></div>
+                </div>
+                
+                <!-- Packaging Supplies Assignment -->
+                <div class="form-group" style="background: #f8f9fa; padding: 15px; border-radius: 6px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <label class="form-label" style="margin-bottom: 0;">
+                            <i class="fas fa-box" style="color: #e67e22;"></i> Packaging & Supplies
+                        </label>
+                        <button type="button" class="btn btn-success btn-sm" onclick="addEditPackagingRow()">
+                            <i class="fas fa-plus"></i> Add Supply
+                        </button>
+                    </div>
+                    <div id="editPackagingContainer"></div>
                 </div>
                 
                 <div style="text-align: right; margin-top: 20px; border-top: 1px solid #eee; padding-top: 15px;">
@@ -698,8 +852,32 @@ function openAddModal() {
     document.getElementById('addModal').style.display = 'block';
 }
 
+function openManageCategoriesModal() {
+    document.getElementById('manageCategoriesModal').style.display = 'block';
+}
+
 function openAddCategoryModal() {
+    // Close manage categories modal if open
+    closeModal('manageCategoriesModal');
     document.getElementById('addCategoryModal').style.display = 'block';
+}
+
+function deleteCategory(categoryId, categoryName, productCount) {
+    if (productCount > 0) {
+        alert(`Cannot delete "${categoryName}" because it has ${productCount} active product(s).\n\nPlease reassign or delete the products first.`);
+        return;
+    }
+    
+    if (confirm(`Are you sure you want to delete the category "${categoryName}"?`)) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.innerHTML = `
+            <input type="hidden" name="action" value="delete_category">
+            <input type="hidden" name="category_id" value="${categoryId}">
+        `;
+        document.body.appendChild(form);
+        form.submit();
+    }
 }
 
 function openEditModal(product) {
@@ -731,8 +909,39 @@ function openEditModal(product) {
         removeBtn.style.display = 'none';
         removeFlag.value = '0';
     }
+    
+    // Load existing ingredients and packaging
+    loadProductConnections(product.product_id);
 
     document.getElementById('editModal').style.display = 'block';
+}
+
+function loadProductConnections(productId) {
+    // Clear existing rows
+    document.getElementById('editIngredientsContainer').innerHTML = '';
+    document.getElementById('editPackagingContainer').innerHTML = '';
+    editIngredientRowCount = 0;
+    editPackagingRowCount = 0;
+    
+    // Fetch product connections
+    fetch(`../api/get-product-connections.php?product_id=${productId}`)
+        .then(r => r.json())
+        .then(data => {
+            // Load ingredients
+            if (data.ingredients && data.ingredients.length > 0) {
+                data.ingredients.forEach(ing => {
+                    addEditIngredientRow(ing.ingredient_id, ing.quantity_per_unit, ing.unit);
+                });
+            }
+            
+            // Load packaging
+            if (data.packaging && data.packaging.length > 0) {
+                data.packaging.forEach(pkg => {
+                    addEditPackagingRow(pkg.supply_id, pkg.quantity_per_unit);
+                });
+            }
+        })
+        .catch(err => console.error('Failed to load product connections:', err));
 }
 
 function closeModal(modalId) {
@@ -787,6 +996,7 @@ window.onclick = function(event) {
     const addModal = document.getElementById('addModal');
     const editModal = document.getElementById('editModal');
     const addCategoryModal = document.getElementById('addCategoryModal');
+    const manageCategoriesModal = document.getElementById('manageCategoriesModal');
     
     if (event.target === addModal) {
         addModal.style.display = 'none';
@@ -796,6 +1006,9 @@ window.onclick = function(event) {
     }
     if (addCategoryModal && event.target === addCategoryModal) {
         addCategoryModal.style.display = 'none';
+    }
+    if (manageCategoriesModal && event.target === manageCategoriesModal) {
+        manageCategoriesModal.style.display = 'none';
     }
 }
 </script>
@@ -855,6 +1068,136 @@ function removeEditImagePreview() {
     editProductImagePreview.style.display = 'none';
     editRemoveImageBtn.style.display = 'none';
     document.getElementById('edit_remove_image').value = '1';
+}
+
+// Ingredient and Packaging Management
+const ingredientsData = <?php echo json_encode($ingredients); ?>;
+const packagingData = <?php echo json_encode($packagingSupplies); ?>;
+
+let ingredientRowCount = 0;
+let packagingRowCount = 0;
+let editIngredientRowCount = 0;
+let editPackagingRowCount = 0;
+
+function addIngredientRow() {
+    const container = document.getElementById('ingredientsContainer');
+    const row = document.createElement('div');
+    row.className = 'ingredient-row';
+    row.style.cssText = 'display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:10px;margin-bottom:10px;align-items:end;';
+    row.innerHTML = `
+        <div>
+            <label class="form-label">Ingredient</label>
+            <select name="ingredients[${ingredientRowCount}][ingredient_id]" class="form-control" required>
+                <option value="">-- Select --</option>
+                ${ingredientsData.map(ing => `<option value="${ing.ingredient_id}" data-unit="${ing.unit}">${ing.ingredient_name} (Stock: ${ing.current_stock} ${ing.unit})</option>`).join('')}
+            </select>
+        </div>
+        <div>
+            <label class="form-label">Quantity</label>
+            <input type="number" name="ingredients[${ingredientRowCount}][quantity]" class="form-control" step="0.01" min="0.01" required>
+        </div>
+        <div>
+            <label class="form-label">Unit</label>
+            <input type="text" name="ingredients[${ingredientRowCount}][unit]" class="form-control" readonly>
+        </div>
+        <button type="button" class="btn btn-danger btn-sm" onclick="this.parentElement.remove()" style="margin-bottom:0;">
+            <i class="fas fa-times"></i>
+        </button>
+    `;
+    container.appendChild(row);
+    
+    // Auto-fill unit when ingredient is selected
+    const select = row.querySelector('select');
+    const unitInput = row.querySelector('input[type="text"]');
+    select.addEventListener('change', function() {
+        const option = this.options[this.selectedIndex];
+        unitInput.value = option.dataset.unit || '';
+    });
+    
+    ingredientRowCount++;
+}
+
+function addPackagingRow() {
+    const container = document.getElementById('packagingContainer');
+    const row = document.createElement('div');
+    row.className = 'packaging-row';
+    row.style.cssText = 'display:grid;grid-template-columns:2fr 1fr auto;gap:10px;margin-bottom:10px;align-items:end;';
+    row.innerHTML = `
+        <div>
+            <label class="form-label">Supply Item</label>
+            <select name="packaging[${packagingRowCount}][supply_id]" class="form-control" required>
+                <option value="">-- Select --</option>
+                ${packagingData.map(pkg => `<option value="${pkg.supply_id}">${pkg.item_name} (Stock: ${pkg.current_stock} ${pkg.unit})</option>`).join('')}
+            </select>
+        </div>
+        <div>
+            <label class="form-label">Quantity</label>
+            <input type="number" name="packaging[${packagingRowCount}][quantity]" class="form-control" step="0.01" min="0.01" value="1" required>
+        </div>
+        <button type="button" class="btn btn-danger btn-sm" onclick="this.parentElement.remove()" style="margin-bottom:0;">
+            <i class="fas fa-times"></i>
+        </button>
+    `;
+    container.appendChild(row);
+    packagingRowCount++;
+}
+
+function addEditIngredientRow(ingredientId = '', quantity = '', unit = '') {
+    const container = document.getElementById('editIngredientsContainer');
+    const row = document.createElement('div');
+    row.className = 'ingredient-row';
+    row.style.cssText = 'display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:10px;margin-bottom:10px;align-items:end;';
+    row.innerHTML = `
+        <div>
+            <select name="edit_ingredients[${editIngredientRowCount}][ingredient_id]" class="form-control" required>
+                <option value="">-- Select --</option>
+                ${ingredientsData.map(ing => `<option value="${ing.ingredient_id}" data-unit="${ing.unit}" ${ing.ingredient_id == ingredientId ? 'selected' : ''}>${ing.ingredient_name} (Stock: ${ing.current_stock} ${ing.unit})</option>`).join('')}
+            </select>
+        </div>
+        <div>
+            <input type="number" name="edit_ingredients[${editIngredientRowCount}][quantity]" class="form-control" step="0.01" min="0.01" value="${quantity}" required>
+        </div>
+        <div>
+            <input type="text" name="edit_ingredients[${editIngredientRowCount}][unit]" class="form-control" value="${unit}" readonly>
+        </div>
+        <button type="button" class="btn btn-danger btn-sm" onclick="this.parentElement.remove()">
+            <i class="fas fa-times"></i>
+        </button>
+    `;
+    container.appendChild(row);
+    
+    // Auto-fill unit
+    const select = row.querySelector('select');
+    const unitInput = row.querySelector('input[type="text"]');
+    select.addEventListener('change', function() {
+        const option = this.options[this.selectedIndex];
+        unitInput.value = option.dataset.unit || '';
+    });
+    
+    editIngredientRowCount++;
+}
+
+function addEditPackagingRow(supplyId = '', quantity = '') {
+    const container = document.getElementById('editPackagingContainer');
+    const row = document.createElement('div');
+    row.className = 'packaging-row';
+    row.style.cssText = 'display:grid;grid-template-columns:2fr 1fr auto;gap:10px;margin-bottom:10px;align-items:end;';
+    row.innerHTML = `
+        <div>
+            <select name="edit_packaging[${editPackagingRowCount}][supply_id]" class="form-control" required>
+                <option value="">-- Select --</option>
+                ${packagingData.map(pkg => `<option value="${pkg.supply_id}" ${pkg.supply_id == supplyId ? 'selected' : ''}>${pkg.item_name} (Stock: ${pkg.current_stock} ${pkg.unit})</option>`).join('')}
+            </select>
+        </div>
+        <div>
+            <input type="number" name="edit_packaging[${editPackagingRowCount}][quantity]" class="form-control" step="0.01" min="0.01" value="${quantity}" required>
+        </div>
+        <button type="button" class="btn btn-danger btn-sm" onclick="this.parentElement.remove()">
+            <i class="fas fa-times"></i>
+        </button>
+    `;
+    container.appendChild(row);
+    editPackagingRowCount++;
 }
 </script>
 

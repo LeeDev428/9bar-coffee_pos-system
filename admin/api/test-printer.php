@@ -75,9 +75,9 @@ try {
     
     // Create test receipt data
     $testReceiptData = [
-        'business_name' => $businessSettings['business_name'] ?? '9BARS COFFEE',
-        'business_address' => $businessSettings['business_address'] ?? '0099 F.C. Tuazon Street, Pateros, Philippines 1620',
-        'business_phone' => $businessSettings['business_phone'] ?? '(032) 123-4567',
+        'business_name' => $businessSettings['business_name'] ?? '9BARs COFFEE',
+        'business_address' => $businessSettings['business_address'] ?? '99 F.C. Tuazon Street, Pateros, Philippines 1620',
+        'business_phone' => $businessSettings['business_phone'] ?? '+63-939-128-8505',
         'sale_id' => 'TEST-' . date('YmdHis'),
         'cashier' => $auth->getCurrentUser()['username'] ?? 'Test User',
         'customer_name' => 'Test Customer',
@@ -104,7 +104,7 @@ try {
         'change_amount' => 4.00,
         'receipt_footer' => 'This is a test print\nThank you for testing!',
         'qr_data' => isset($printerSettings['print_qr_code']) && $printerSettings['print_qr_code'] == '1' ? 
-                     'https://9barcoffee.com/receipt/TEST-' . date('YmdHis') : null
+                     'https://9barscoffeee.com/receipt/TEST-' . date('YmdHis') : null
     ];
     
     // Print test receipt

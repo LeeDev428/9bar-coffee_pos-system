@@ -3,7 +3,7 @@
 
 :root {
     /* Color Palette based on screenshots */
-    --primary-color: #2c3e50;      /* Dark blue-gray from screenshots */
+    --primary-color: #2d7a1f;      /* Dark blue-gray from screenshots */
     --secondary-color: #34495e;     /* Slightly lighter blue-gray */
     --accent-color: #e67e22;        /* Coffee/orange color from logo */
     --background-light: #ecf0f1;    /* Light gray background */
@@ -294,20 +294,23 @@ body {
 
 .btn-login {
     width: 100%;
-    padding: 15px;
-    background-color: #242424; /* match index button (black) */
-    color: var(--text-muted); /* gray text as requested */
+    padding: 14px;
+    background-color: #3E363F;
+    color: white;
     border: none;
     border-radius: 8px;
-    font-size: 1.1rem;
+    font-size: 16px;
     font-weight: 600;
     cursor: pointer;
-    transition: all 0.18s ease;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    letter-spacing: 1px;
 }
 
 .btn-login:hover {
-    background-color: #2e2e2e; /* subtle lighter black on hover */
-    transform: translateY(-1px);
+    background-color: #2d2830;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(62, 54, 63, 0.3);
 }
 
 /* Dashboard Layout */
@@ -333,7 +336,7 @@ body {
 
 .sidebar-header {
     padding: 20px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    border-bottom: 1px solid #2d7a1f(255, 255, 255, 0.1);
     text-align: center;
 }
 
@@ -400,7 +403,7 @@ body {
 
 .sidebar-footer {
     padding: 20px;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    border-top: 1px solid #2d7a1f(255, 255, 255, 0.1);
 }
 
 .dashboard-container {

@@ -22,7 +22,7 @@ class ProductManager {
             $conn->beginTransaction();
 
             $stmt = $conn->prepare(
-                "INSERT INTO products (product_name, category_id, description, price, cost_price, barcode, image_path, status) VALUES (?, ?, ?, ?, ?, ?, ?, 'active')"
+                "INSERT INTO products (product_name, category_id, description, price, cost_price, barcode, image_path, status, requires_ice, main_ingredient_id) VALUES (?, ?, ?, ?, ?, ?, ?, 'active', ?, ?)"
             );
             $stmt->execute([
                 $data['product_name'] ?? null,
@@ -32,6 +32,8 @@ class ProductManager {
                 $data['cost_price'] ?? 0,
                 $data['barcode'] ?? null,
                 $data['image'] ?? null,
+                $data['requires_ice'] ?? 0,
+                $data['main_ingredient_id'] ?? null,
             ]);
 
             $productId = (int)$conn->lastInsertId();
@@ -59,7 +61,7 @@ class ProductManager {
 
     public function updateProduct($productId, array $data) {
         return $this->db->query(
-            "UPDATE products SET product_name = ?, category_id = ?, description = ?, price = ?, cost_price = ?, barcode = ?, image_path = ? WHERE product_id = ?",
+            "UPDATE products SET product_name = ?, category_id = ?, description = ?, price = ?, cost_price = ?, barcode = ?, image_path = ?, requires_ice = ?, main_ingredient_id = ? WHERE product_id = ?",
             [
                 $data['product_name'] ?? null,
                 $data['category_id'] ?? null,
@@ -68,6 +70,8 @@ class ProductManager {
                 $data['cost_price'] ?? 0,
                 $data['barcode'] ?? null,
                 $data['image'] ?? null,
+                $data['requires_ice'] ?? 0,
+                $data['main_ingredient_id'] ?? null,
                 $productId,
             ]
         );

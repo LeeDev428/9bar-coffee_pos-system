@@ -10,6 +10,14 @@ try {
     die("Database connection failed: " . $e->getMessage());
 }
 
+// Clear password reset session if coming from reset flow
+if (isset($_GET['clear_reset'])) {
+    unset($_SESSION['reset_step']);
+    unset($_SESSION['reset_user_id']);
+    unset($_SESSION['reset_code_id']);
+    unset($_SESSION['reset_code']);
+}
+
 // Check if user is already logged in
 if ($auth->isLoggedIn()) {
     $user = $auth->getCurrentUser();
@@ -57,7 +65,7 @@ if ($_POST) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - 9BARS COFFEE POS</title>
+    <title>Login - 9BARs COFFEE POS</title>
     <link rel="stylesheet" href="assets/css/style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -68,15 +76,15 @@ if ($_POST) {
         <!-- Left Side - Logo and Branding -->
         <div class="login-left">
             <div class="login-logo">
-                <img src="assets/img/9bar-pos-logo2.png" alt="9BARS COFFEE Logo">
+                <img src="assets/img/9bar-pos-logo2.png" alt="9BARs COFFEE Logo">
             </div>
             
             <h2 style="color: white; font-size: 2.5rem; margin-bottom: 10px;">
-                9BARS<br>COFFEE
+                9BARs<br>COFFEE
             </h2>
             
             <p class="login-tagline">
-                Find the best drink to accompany your days
+                Drink Good Coffee.
             </p>
         </div>
         
@@ -105,7 +113,7 @@ if ($_POST) {
                 <div style="color: #e74c3c; margin-bottom: 15px;">
                     <strong>⚠️</strong>
                 </div>
-                <p style="margin-bottom: 15px; color: #2c3e50;">
+                <p style="margin-bottom: 15px; color: #3f9b28d3;">
                     <?php echo htmlspecialchars($error); ?>
                 </p>
                 <?php if ($countdown > 0): ?>
@@ -168,13 +176,6 @@ if ($_POST) {
                 </button>
                 <div style="margin-top:10px; text-align:center;">
                     <a href="forgot-password.php" style="color: #3498db; text-decoration: none; font-size: 0.95rem;">Forgot password?</a>
-                </div>
-                <div style="text-align: center; margin-top: 20px;">
-                    <p style="color: #95a5a6; font-size: 0.9rem;">
-                        Default Login:<br>
-                        <strong>Username:</strong> admin | <strong>Password:</strong> admin123<br>
-                        <strong>Username:</strong> staff1 | <strong>Password:</strong> admin123
-                    </p>
                 </div>
             </form>
             

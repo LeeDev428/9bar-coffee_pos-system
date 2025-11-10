@@ -410,7 +410,7 @@ class ThermalPrinter {
             
             // ========== FOOTER SECTION (centered) ==========
             $this->setAlign(self::ALIGN_CENTER)
-                 ->textln('Thank you for your business!')
+                 ->textln('Thank you for visiting 9BARs Coffee!')
                  ->textln('Please come again!')
                  ->feed(2);
             
@@ -433,7 +433,7 @@ class ThermalPrinter {
              ->setAlign(self::ALIGN_CENTER)
              ->setTextSize(self::SIZE_DOUBLE)
              ->setBold(true)
-             ->textln("9BARS COFFEE")
+             ->textln("9BARs COFFEE")
              ->setTextSize(self::SIZE_NORMAL)
              ->setBold(false)
              ->textln("Thermal Printer Test")

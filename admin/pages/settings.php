@@ -484,7 +484,7 @@ $categories = $db->fetchAll("SELECT * FROM categories ORDER BY category_name");
             
             <div class="form-group">
                 <label class="form-label">Receipt Header</label>
-                <textarea name="receipt_header" class="form-control" rows="3" placeholder="Text that appears at the top of receipts..."><?php echo htmlspecialchars($posSettings['receipt_header'] ?? 'Welcome to 9Bar Coffee!\nThank you for your visit!'); ?></textarea>
+                <textarea name="receipt_header" class="form-control" rows="3" placeholder="Text that appears at the top of receipts..."><?php echo htmlspecialchars($posSettings['receipt_header'] ?? 'Welcome to 9BARs Coffee!\nThank you for visiting 9BARs Coffee!'); ?></textarea>
             </div>
             
             <div class="form-group">

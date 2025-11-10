@@ -1,4 +1,14 @@
 <?php
+session_start();
+
+// Clear any existing reset session when starting a new forgot password request
+if (!isset($_POST['email'])) {
+    unset($_SESSION['reset_step']);
+    unset($_SESSION['reset_user_id']);
+    unset($_SESSION['reset_code_id']);
+    unset($_SESSION['reset_code']);
+}
+
 require_once 'includes/database.php';
 require_once 'includes/auth.php';
 
@@ -22,27 +32,39 @@ if ($_POST) {
         $user = $db->fetchOne($sql, [$emailOrUsername, $emailOrUsername]);
 
         // Always return a generic message to avoid revealing whether the account exists
-        $devResetLink = '';
+        $devCode = '';
         if ($user) {
-            $token = bin2hex(random_bytes(16));
-            $expiresAt = date('Y-m-d H:i:s', time() + 3600);
-            $insertSql = "INSERT INTO password_resets (user_id, token, expires_at, created_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)";
+            // Generate 6-digit verification code
+            $code = str_pad(random_int(100000, 999999), 6, '0', STR_PAD_LEFT);
+            $expiresAt = date('Y-m-d H:i:s', time() + 600); // 10 minutes expiry
+            
+            // Store code with email in password_resets table
+            $insertSql = "INSERT INTO password_resets (user_id, email, token, expires_at, created_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)";
             try {
-                $db->query($insertSql, [$user['user_id'], $token, $expiresAt]);
+                $db->query($insertSql, [$user['user_id'], $user['email'], $code, $expiresAt]);
             } catch (Exception $e) {
                 // Log and continue — the table might not exist yet in the database.
-                error_log('Failed to insert password reset token: ' . $e->getMessage());
+                error_log('Failed to insert password reset code: ' . $e->getMessage());
             }
 
-            $resetLink = sprintf('%s/reset-password.php?token=%s', rtrim((isset($_SERVER['REQUEST_SCHEME']) ? $_SERVER['REQUEST_SCHEME'] : (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' ? 'https' : 'http')) . '://' . $_SERVER['HTTP_HOST'] . dirname($_SERVER['SCRIPT_NAME']), '/') , $token);
-            $devResetLink = $resetLink;
+            $devCode = $code;
 
             require_once __DIR__ . '/includes/mailer.php';
             $smtpConfig = file_exists(__DIR__ . '/includes/smtp_config.php') ? require __DIR__ . '/includes/smtp_config.php' : null;
 
-            // Attempt to send email via sendMail() which will use PHPMailer (with SMTP if enabled) or fallback to PHP mail()
-            $subject = 'Password Reset Request';
-            $body = "<p>Hello {$user['username']},</p>\n<p>We received a request to reset your password. Click the link below to reset it (expires in 1 hour):</p>\n<p><a href=\"{$resetLink}\">Reset Password</a></p>\n<p>If you didn't request this, ignore this message.</p>";
+            // Send verification code via email
+            $subject = 'Password Reset Verification Code';
+            $body = "<div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;'>
+                <h2 style='color: #3E363F;'>Password Reset Request</h2>
+                <p>Hello {$user['username']},</p>
+                <p>We received a request to reset your password. Your verification code is:</p>
+                <div style='background: #f5f5f5; border: 2px solid #3E363F; border-radius: 8px; padding: 20px; text-align: center; margin: 20px 0;'>
+                    <h1 style='color: #3E363F; font-size: 36px; letter-spacing: 8px; margin: 0;'>{$code}</h1>
+                </div>
+                <p>This code will expire in <strong>10 minutes</strong>.</p>
+                <p>If you didn't request this, please ignore this message.</p>
+                <p style='color: #999; font-size: 12px; margin-top: 30px;'>9BARs COFFEE POS System</p>
+            </div>";
 
             $mailSent = false;
             try {
@@ -53,12 +75,12 @@ if ($_POST) {
             }
 
             if ($mailSent) {
-                $success = 'If an account with that email or username exists, a reset link has been sent.';
+                $success = 'A 6-digit verification code has been sent to your email. Please check your inbox.';
             } else {
-                // Keep the generic message but provide the dev link when sending failed (helpful in local dev)
-                $success = "If an account with that email or username exists, a reset link has been sent.";
-                $success .= " For development or if email sending is not configured, use this link: <a href=\"{$devResetLink}\">Reset Password</a> (expires in 1 hour).";
-                error_log('Password reset email not sent for user_id=' . $user['user_id'] . ' email=' . $user['email']);
+                // Keep the generic message but provide the dev code when sending failed (helpful in local dev)
+                $success = "A verification code has been sent to your email.";
+                $success .= " <strong>For development:</strong> Your code is <code style='background:#f5f5f5;padding:5px 10px;border-radius:4px;font-size:18px;letter-spacing:2px;'>{$devCode}</code> (expires in 10 minutes).";
+                error_log('Password reset email not sent for user_id=' . $user['user_id'] . ' email=' . $user['email'] . ' code=' . $devCode);
             }
         } else {
             $success = 'If an account with that email or username exists, a reset link has been sent.';
@@ -71,7 +93,7 @@ if ($_POST) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Forgot Password - 9BARS COFFEE POS</title>
+    <title>Forgot Password - 9BARs COFFEE POS</title>
     <link rel="stylesheet" href="assets/css/style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -85,22 +107,22 @@ if ($_POST) {
     <div class="login-container">
         <div class="login-left">
             <div class="login-logo">
-                <img src="assets/img/9bar-pos-logo2.png" alt="9BARS COFFEE Logo">
+                <img src="assets/img/9bar-pos-logo2.png" alt="9BARs COFFEE Logo">
             </div>
             
             <h2 style="color: white; font-size: 2.5rem; margin-bottom: 10px;">
-                9BARS<br>COFFEE
+                9BARs<br>COFFEE
             </h2>
             
             <p class="login-tagline">
-                Find the best drink to accompany your days
+                Drink Good Coffee.
             </p>
         </div>
 
         <div class="login-right">
             <div class="welcome-section">
                 <h1 class="welcome-title">Forgot Password</h1>
-                <p class="welcome-subtitle">Enter your email or username to receive a reset link</p>
+                <p class="welcome-subtitle">Enter your email or username to receive a verification code</p>
             </div>
 
             <?php if ($error): ?>
@@ -115,7 +137,9 @@ if ($_POST) {
                     <div class="alert alert-success" style="margin-bottom:20px;">
                         <?php echo $success; ?>
                     </div>
-                    <a href="login.php" style="color:#3498db; text-decoration:none;">← Back to Login</a>
+                    <a href="reset-password.php" style="display:inline-block;background:#3498db;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;margin:10px 0;">Enter Verification Code</a>
+                    <br>
+                    <a href="login.php" style="color:#95a5a6; text-decoration:none; font-size:14px; margin-top:10px; display:inline-block;">← Back to Login</a>
                 </div>
             <?php else: ?>
                 <form method="POST" class="login-form" style="max-width:400px; margin:0 auto;">
@@ -124,7 +148,7 @@ if ($_POST) {
                         <input type="text" id="email_or_username" name="email_or_username" class="form-control" required>
                     </div>
 
-                    <button type="submit" class="btn-login">Send Reset Link</button>
+                    <button type="submit" class="btn-login">Send Verification Code</button>
 
                     <div style="text-align:center; margin-top:16px;">
                         <a href="login.php" style="color: #95a5a6; text-decoration: none;">← Back to Login</a>
@@ -136,13 +160,11 @@ if ($_POST) {
 
 </body>
 </html>
-
-<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Forgot Password - 9BARS COFFEE POS</title>
+    <title>Forgot Password - 9BARs COFFEE POS</title>
     <link rel="stylesheet" href="assets/css/style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -156,15 +178,15 @@ if ($_POST) {
     <div class="login-container">
         <div class="login-left">
             <div class="login-logo">
-                <img src="assets/img/9bar-pos-logo2.png" alt="9BARS COFFEE Logo">
+                <img src="assets/img/9bar-pos-logo2.png" alt="9BARs COFFEE Logo">
             </div>
             
             <h2 style="color: white; font-size: 2.5rem; margin-bottom: 10px;">
-                9BARS<br>COFFEE
+                9BARs<br>COFFEE
             </h2>
             
             <p class="login-tagline">
-                Find the best drink to accompany your days
+                Drink Good Coffee.
             </p>
         </div>
 
