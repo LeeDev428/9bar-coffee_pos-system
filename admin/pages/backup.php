@@ -1,6 +1,53 @@
 <?php
 // Admin Backup Management Page
 $page_title = 'BACKUP & RESTORE';
+
+// Handle download requests BEFORE any output
+if (isset($_GET['download']) && isset($_GET['type'])) {
+    require_once '../../includes/database.php';
+    require_once '../../includes/auth.php';
+    require_once '../../includes/functions.php';
+    
+    // Check if user is logged in and is admin
+    $db = new Database();
+    $auth = new Auth($db);
+    $auth->requireLogin();
+    $auth->requireAdmin();
+    
+    $filename = basename($_GET['download']); // Prevent directory traversal
+    $type = $_GET['type'];
+    
+    $backupPath = dirname(dirname(__DIR__)) . '/backups/';
+    if ($type === 'sales') {
+        $backupPath .= 'sales/' . $filename;
+    } else if ($type === 'database') {
+        $backupPath .= 'database/' . $filename;
+    } else {
+        die('Invalid backup type');
+    }
+    
+    if (file_exists($backupPath)) {
+        // Clear any output buffers
+        while (ob_get_level()) {
+            ob_end_clean();
+        }
+        
+        // Set headers for download
+        header('Content-Type: application/octet-stream');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        header('Content-Length: ' . filesize($backupPath));
+        header('Cache-Control: must-revalidate');
+        header('Pragma: public');
+        header('Expires: 0');
+        
+        // Read and output file
+        readfile($backupPath);
+        exit;
+    } else {
+        die('Backup file not found: ' . htmlspecialchars($filename));
+    }
+}
+
 include '../components/main-layout.php';
 
 require_once '../../includes/BackupManager.php';
@@ -84,42 +131,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // This case is handled via GET parameter below
                 break;
         }
-    }
-}
-
-// Handle download requests via GET
-if (isset($_GET['download']) && isset($_GET['type'])) {
-    $filename = sanitizeInput($_GET['download']);
-    $type = sanitizeInput($_GET['type']);
-    
-    // Prevent directory traversal
-    $filename = basename($filename);
-    
-    $backupPath = dirname(dirname(__DIR__)) . '/backups/';
-    if ($type === 'sales') {
-        $backupPath .= 'sales/' . $filename;
-    } else if ($type === 'database') {
-        $backupPath .= 'database/' . $filename;
-    } else {
-        die('Invalid backup type');
-    }
-    
-    if (file_exists($backupPath)) {
-        // Force download
-        header('Content-Type: application/octet-stream');
-        header('Content-Disposition: attachment; filename="' . basename($filename) . '"');
-        header('Content-Length: ' . filesize($backupPath));
-        header('Cache-Control: no-cache, must-revalidate');
-        header('Pragma: public');
-        
-        // Clear output buffer
-        ob_clean();
-        flush();
-        
-        readfile($backupPath);
-        exit;
-    } else {
-        die('Backup file not found: ' . htmlspecialchars($filename));
     }
 }
 
