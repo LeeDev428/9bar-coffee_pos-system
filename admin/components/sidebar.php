@@ -66,6 +66,11 @@ $current_page = basename($_SERVER['PHP_SELF'], '.php');
             <span>RECORDS</span>
         </a>
         
+        <a href="backup.php" class="nav-item <?php echo ($current_page == 'backup') ? 'active' : ''; ?>">
+            <i class="fas fa-shield-alt"></i>
+            <span>BACKUP & RESTORE</span>
+        </a>
+        
         <a href="settings.php" class="nav-item <?php echo ($current_page == 'settings') ? 'active' : ''; ?>">
             <i class="fas fa-cog"></i>
             <span>SETTINGS</span>
