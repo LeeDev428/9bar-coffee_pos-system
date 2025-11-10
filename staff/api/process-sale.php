@@ -12,6 +12,7 @@ require_once '../../includes/ProductManager.php';
 require_once '../../includes/SalesManager.php';
 require_once '../../includes/ThermalPrinter.php';
 require_once '../../includes/auth.php';
+require_once '../../includes/BackupManager.php';
 
 // read JSON payload
 $input = json_decode(file_get_contents('php://input'), true);
@@ -207,6 +208,18 @@ try {
     }
 
     $pdo->commit();
+    
+    // ============================================
+    // AUTOMATIC BACKUP: Backup this sale transaction immediately
+    // ============================================
+    try {
+        $backupManager = new BackupManager($db);
+        $backupManager->backupSaleTransaction($saleId);
+        error_log("Sale #{$saleId} backed up successfully");
+    } catch (Exception $backupEx) {
+        // Don't fail the sale if backup fails, just log it
+        error_log("Backup error for sale #{$saleId}: " . $backupEx->getMessage());
+    }
     
     // Auto-print receipt if enabled
     $printSuccess = false;
