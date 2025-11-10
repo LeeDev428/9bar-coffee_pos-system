@@ -81,18 +81,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 break;
                 
             case 'download_backup':
-                $backupFile = sanitizeInput($_POST['backup_file']);
-                $backupPath = dirname(__DIR__) . '/backups/' . $backupFile;
-                
-                if (file_exists($backupPath)) {
-                    header('Content-Type: application/octet-stream');
-                    header('Content-Disposition: attachment; filename="' . basename($backupFile) . '"');
-                    header('Content-Length: ' . filesize($backupPath));
-                    readfile($backupPath);
-                    exit;
-                }
+                // This case is handled via GET parameter below
                 break;
         }
+    }
+}
+
+// Handle download requests via GET
+if (isset($_GET['download']) && isset($_GET['type'])) {
+    $filename = sanitizeInput($_GET['download']);
+    $type = sanitizeInput($_GET['type']);
+    
+    // Prevent directory traversal
+    $filename = basename($filename);
+    
+    $backupPath = dirname(dirname(__DIR__)) . '/backups/';
+    if ($type === 'sales') {
+        $backupPath .= 'sales/' . $filename;
+    } else if ($type === 'database') {
+        $backupPath .= 'database/' . $filename;
+    } else {
+        die('Invalid backup type');
+    }
+    
+    if (file_exists($backupPath)) {
+        // Force download
+        header('Content-Type: application/octet-stream');
+        header('Content-Disposition: attachment; filename="' . basename($filename) . '"');
+        header('Content-Length: ' . filesize($backupPath));
+        header('Cache-Control: no-cache, must-revalidate');
+        header('Pragma: public');
+        
+        // Clear output buffer
+        ob_clean();
+        flush();
+        
+        readfile($backupPath);
+        exit;
+    } else {
+        die('Backup file not found: ' . htmlspecialchars($filename));
     }
 }
 
@@ -398,7 +425,7 @@ table td {
                             <td><?php echo $backup['date']; ?></td>
                             <td><span class="badge badge-info"><?php echo $backup['readable_size']; ?></span></td>
                             <td>
-                                <a href="<?php echo $backup['filepath']; ?>" download class="download-link">Download</a>
+                                <a href="backup.php?download=<?php echo urlencode($backup['filename']); ?>&type=sales" class="download-link">Download</a>
                             </td>
                         </tr>
                     <?php endforeach; ?>
@@ -431,7 +458,7 @@ table td {
                             <td><?php echo $backup['date']; ?></td>
                             <td><span class="badge badge-success"><?php echo $backup['readable_size']; ?></span></td>
                             <td>
-                                <a href="<?php echo $backup['filepath']; ?>" download class="download-link">Download</a>
+                                <a href="backup.php?download=<?php echo urlencode($backup['filename']); ?>&type=database" class="download-link">Download</a>
                             </td>
                         </tr>
                     <?php endforeach; ?>
