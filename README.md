@@ -1,245 +1,21 @@
-# ☕ 9Bar Coffee POS System
+# 📘 9Bar Coffee POS System - User Guide
 
-A complete Point of Sale (POS) and Inventory Management System built for coffee shops. Designed for **9Bars Coffee** to manage sales, track inventory, and print thermal receipts.
+## 🎯 What is this System?
 
-![PHP](https://img.shields.io/badge/PHP-7.4+-blue.svg)
-![MySQL](https://img.shields.io/badge/MySQL-8.0+-orange.svg)
-![License](https://img.shields.io/badge/License-MIT-green.svg)
+The **9Bar Coffee POS System** is a complete Point of Sale and Inventory Management solution built specifically for coffee shops. It helps you manage daily sales, track inventory automatically, print receipts, and generate reports - all in one system.
 
 ---
 
-## 📋 Table of Contents
+## 🚀 Quick Overview
 
-- [Features](#-features)
-- [Screenshots](#-screenshots)
-- [Installation](#-installation)
-- [Usage](#-usage)
-- [Database Structure](#-database-structure)
-- [Configuration](#-configuration)
-- [Technologies Used](#-technologies-used)
-- [Login Credentials](#-login-credentials)
-- [Troubleshooting](#-troubleshooting)
-- [License](#-license)
+### What Can This System Do?
 
----
-
-## ✨ Features
-
-### 🛒 Point of Sale (POS)
-- **Fast checkout** with product search and category filtering
-- **Add-ons support** (whipped cream, pearls, chocolate bits, etc.)
-- **Size variants** (8oz, 12oz, 16oz, 22oz)
-- **Ice level selection** for cold drinks
-- **Multiple payment methods** (Cash & GCash)
-- **Real-time cart management**
-- **Thermal receipt printing** (XPrinter compatible)
-
-### 📦 Inventory Management
-- **Automatic stock deduction** when sales are made
-- Tracks **products, ingredients, packaging, and add-ons**
-- **Low stock alerts** when items run low
-- **Product-ingredient connections** for accurate tracking
-- **B1T1 (Buy 1 Take 1) logic** - automatically deducts correct quantities
-- **Reorder level monitoring**
-- **Manual stock adjustments**
-
-### 💰 Sales & Reports
-- **Daily sales dashboard** with real-time statistics
-- **Cash vs GCash breakdown**
-- **Transaction history** with search and filters
-- **Best-selling products** tracking
-- **Void transactions** with admin authorization
-- **GCash reference number** tracking
-
-### 👥 User Management
-- **Role-based access** (Admin & Staff)
-- **Secure login** with failed attempt tracking
-- **Password reset via email**
-- **Session management**
-- **Admin-only features** (void sales, manage products, view reports)
-
-### 🖨️ Thermal Printing
-- **Auto-print receipts** after checkout
-- **Manual reprint** option from sales history
-- Supports **XPrinter 58mm thermal printers**
-- Compatible with **Windows, USB, and Network printers**
-- **Customizable receipt format**
-
-### 🚫 Void Feature
-- **Cancel incorrect transactions** with admin password
-- **Automatic inventory restoration** when voiding
-- **Reason tracking** for audit trail
-- **Prevents unauthorized voids**
-
----
-
-## 📸 Screenshots
-
-### Login Page
-Clean and modern login interface with branding.
-
-### POS Interface
-Easy-to-use point of sale system with category filtering and cart management.
-
-### Admin Dashboard
-Real-time sales statistics and inventory alerts.
-
-### Products Management
-Add, edit, and manage products with image upload support.
-
-### Sales History
-View transaction history with void and reprint options.
-
----
-
-## 🚀 Installation
-
-### Prerequisites
-- **PHP 7.4+** or higher
-- **MySQL 8.0+** or higher
-- **Apache/Nginx** web server
-- **Composer** (for PHPMailer)
-- **Laragon/XAMPP/WAMP** (recommended for Windows)
-
-### Step 1: Clone or Download
-```bash
-# Clone the repository
-git clone https://github.com/LeeDev428/9bar-coffee_pos-system.git
-
-# Or download and extract to your web server directory
-# Laragon: C:\laragon\www\
-# XAMPP: C:\xampp\htdocs\
-```
-
-### Step 2: Import Database
-1. Open **phpMyAdmin** or **HeidiSQL**
-2. Create a new database named `9bar_pos`
-3. Import the file: `9bar_pos_complete.sql`
-
-**Via Command Line:**
-```bash
-mysql -u root -p < 9bar_pos_complete.sql
-```
-
-### Step 3: Configure Database
-Edit `includes/database.php` if your MySQL credentials are different:
-```php
-private $host = 'localhost';
-private $dbname = '9bar_pos';
-private $username = 'root';
-private $password = '';  // Your MySQL password
-```
-
-### Step 4: Install Dependencies (Optional)
-If you want email functionality:
-```bash
-composer install
-```
-
-### Step 5: Access the System
-Open your browser and navigate to:
-```
-http://localhost/9bar-coffee_pos-system
-```
-
----
-
-## 🎯 Usage
-
-### For Staff (POS)
-1. Login with staff credentials
-2. Go to **POS** page
-3. Select products by clicking on them
-4. Add add-ons and adjust quantities
-5. Choose payment method (Cash or GCash)
-6. Complete the sale
-7. Receipt prints automatically (if printer is connected)
-
-### For Admin
-1. Login with admin credentials
-2. Access full dashboard with sales statistics
-3. Manage products, inventory, and users
-4. View sales reports and transaction history
-5. Void incorrect transactions (requires password)
-6. Adjust stock levels manually
-7. Configure system settings
-
----
-
-## 🗄️ Database Structure
-
-The system uses **18 tables** organized into these categories:
-
-### Core Tables
-- `users` - Admin and staff accounts
-- `products` - Product catalog (41 products)
-- `categories` - Product categories (8 categories)
-- `sales` - Sales transactions
-- `sale_items` - Individual items in each sale
-
-### Inventory Tables
-- `inventory` - Product stock levels
-- `ingredients` - Raw materials (coffee, milk, syrups)
-- `packaging_supplies` - Cups, lids, straws
-- `addons` - Add-on items (whipped cream, pearls, etc.)
-- `product_ingredients` - Links products to ingredients
-- `product_packaging` - Links products to packaging
-
-### System Tables
-- `settings` - System configuration
-- `password_resets` - Password recovery tokens
-- `stock_adjustments` - Manual inventory changes
-- `recipes` - Recipe reference data
-
-### Views
-- `daily_sales_summary` - Daily revenue aggregation
-- `low_stock_items` - Items below minimum stock
-
----
-
-## ⚙️ Configuration
-
-### Email Settings
-Edit `includes/smtp_config.php` to configure email notifications:
-```php
-'host' => 'smtp.gmail.com',
-'port' => 587,
-'username' => 'your-email@gmail.com',
-'password' => 'your-app-password',
-'from_email' => 'your-email@gmail.com',
-'from_name' => '9Bars Coffee'
-```
-
-**Note:** Use Gmail App Password, not your regular password.
-
-### Printer Settings
-Configure thermal printer in `admin/pages/settings.php`:
-- Printer name (e.g., "XPrinter XP-58IIB")
-- Connection type (Windows/USB/Network)
-- Auto-print settings
-
----
-
-## 🛠️ Technologies Used
-
-### Backend
-- **PHP 7.4+** - Server-side scripting
-- **MySQL 8.0+** - Database management
-- **PDO** - Database abstraction layer
-
-### Frontend
-- **HTML5** - Markup
-- **CSS3** - Styling with gradients and animations
-- **JavaScript (Vanilla)** - Client-side interactions
-
-### Libraries
-- **PHPMailer 7.0** - Email sending via SMTP
-- **ESC/POS** - Thermal printer protocol
-
-### Development Tools
-- **Laragon** - Local development environment
-- **Composer** - Dependency management
-- **Git** - Version control
+1. **💰 Process Sales** - Fast checkout with product selection, add-ons, and multiple payment methods
+2. **📦 Track Inventory** - Automatically deduct ingredients when products are sold
+3. **🖨️ Print Receipts** - Thermal printer support for instant receipt printing
+4. **📊 View Reports** - Daily sales statistics, best-selling products, and transaction history
+5. **🚫 Void Transactions** - Cancel incorrect sales with proper authorization
+6. **👥 User Management** - Separate access levels for Admin and Staff
 
 ---
 
@@ -248,150 +24,466 @@ Configure thermal printer in `admin/pages/settings.php`:
 ### Admin Account
 - **Username:** `admin`
 - **Password:** `admin123`
-- **Email:** `admin@gmail.com`
+- **Access:** Full system access (all features)
 
 ### Staff Account
-- **Username:** `staff`
+- **Username:** `staff1`
 - **Password:** `staff123`
-- **Email:** `staff@gmail.com`
-
-**⚠️ Important:** Change these default passwords after first login!
+- **Access:** Limited access (POS, sales records, inventory view)
 
 ---
 
-## 🐛 Troubleshooting
+## 🎓 How It Works - Main Flow
 
-### Database Connection Error
-```
-Solution: Check database.php credentials and ensure MySQL is running
-```
+### For Staff (Cashiers)
 
-### Receipt Not Printing
 ```
-Solution: 
-1. Check printer is connected and powered on
-2. Verify printer name in settings matches exactly
-3. Install printer drivers (XPrinter drivers for Windows)
-4. Test printer with test-printer-ports.php
+┌─────────────────────────────────────────────────────────────┐
+│  1. LOGIN → 2. GO TO POS → 3. SELECT PRODUCTS               │
+│  4. ADD TO CART → 5. CHOOSE PAYMENT → 6. COMPLETE SALE      │
+│  7. RECEIPT PRINTS AUTOMATICALLY                             │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-### Email Not Sending
+#### Step-by-Step Process:
+
+**Step 1: Login**
+- Open the website in your browser
+- Enter your username and password
+- Click "Login"
+
+**Step 2: Navigate to POS (Point of Sale)**
+- After login, click "POINT OF SALE" in the sidebar
+- You'll see all available products organized by category
+
+**Step 3: Build the Order**
+- Click on products to add them to the cart
+- Select size (8oz, 12oz, 16oz, 22oz) if applicable
+- Choose ice level for cold drinks (Less Ice, Normal, Extra Ice)
+- Add extras like whipped cream, pearls, or chocolate bits
+- Adjust quantity using + and - buttons
+
+**Step 4: Process Payment**
+- Review the cart (right side of screen)
+- Select payment method:
+  - **Cash** - For cash payments
+  - **GCash** - For digital payments (enter reference number)
+- Click "Complete Sale"
+
+**Step 5: Receipt Printing**
+- Receipt prints automatically on thermal printer
+- Sale is recorded in the system
+- Inventory is automatically updated
+- Cart clears for next customer
+
+**Step 6: View Sales Records**
+- Click "SALES RECORDS" in sidebar
+- View all transactions
+- Search by date, payment method, or transaction ID
+- **Void sales** if needed (requires your staff password)
+- Reprint receipts if customer needs duplicate
+
+---
+
+### For Admin (Managers)
+
 ```
-Solution:
-1. Enable 2FA on Gmail account
-2. Generate App Password (not regular password)
-3. Update smtp_config.php with app password
-4. Test with database/test-email.php
+┌──────────────────────────────────────────────────────────────┐
+│  DASHBOARD → VIEW REPORTS → MANAGE PRODUCTS → VOID SALES    │
+│  ADJUST INVENTORY → VIEW VOID HISTORY → CONFIGURE SETTINGS   │
+└──────────────────────────────────────────────────────────────┘
 ```
 
-### Stock Not Deducting
+#### Admin Features:
+
+**1. Dashboard**
+- View today's total sales (Cash + GCash breakdown)
+- See transaction count
+- Check best-selling products
+- Monitor low stock alerts
+
+**2. Manage Products**
+- Add new products (name, price, category, image)
+- Edit existing products
+- Set product status (Active/Inactive)
+- Link products to ingredients for automatic tracking
+- Configure packaging requirements
+
+**3. Inventory Management**
+- View stock levels (Products, Ingredients, Packaging, Add-ons)
+- Manual stock adjustments
+- Set minimum/maximum stock levels
+- Reorder level configuration
+- Low stock alerts
+
+**4. Sales Records & Reports**
+- Complete transaction history
+- Advanced search and filters
+- Export to CSV for external reporting
+- Void transactions (requires admin password)
+- View void history with audit trail
+
+**5. Void History (Admin Only)**
+- See all voided transactions
+- Track who voided each sale
+- View void reasons
+- Check if inventory was restored
+- Admin approval status
+
+**6. Settings**
+- Configure thermal printer
+- Set receipt format
+- Enable/disable auto-print
+- System configuration
+
+---
+
+## 🧠 System Logic Explained
+
+### How Inventory Works
+
+#### Automatic Stock Deduction
+When a sale is completed, the system automatically deducts:
+
+1. **Product Stock** - Main product quantity (cups/servings)
+2. **Ingredients** - Raw materials used (coffee beans, milk, syrup)
+3. **Packaging** - Cups, lids, straws based on size
+4. **Add-ons** - Extra items added to the order
+
+**Example:**
 ```
-Solution: Ensure product has connections set up in:
-- Product Ingredients (admin/pages/inventory-ingredients.php)
-- Product Packaging (admin/pages/inventory-packaging.php)
+Customer orders: 1x Iced Latte (16oz) + Whipped Cream
+
+System automatically deducts:
+├── Product: 1 cup of Iced Latte
+├── Ingredients:
+│   ├── Coffee beans: 20g
+│   ├── Milk: 250ml
+│   └── Ice: 100g
+├── Packaging:
+│   ├── 16oz cup: 1 piece
+│   ├── Dome lid: 1 piece
+│   └── Straw: 1 piece
+└── Add-ons:
+    └── Whipped cream: 1 serving
 ```
 
-### Dashboard Shows ₱0.00
+#### Buy 1 Take 1 (B1T1) Logic
+Products in "B1T1" category automatically deduct **2 servings** when 1 is sold:
+- Customer pays for 1
+- System deducts inventory for 2
+- Both customers get their drinks
+
+#### Low Stock Alerts
+- System monitors all inventory levels
+- Alerts appear when stock reaches minimum threshold
+- Dashboard shows "Low Stock" warnings
+- Helps prevent running out of popular items
+
+---
+
+### How Void (Cancel) Transactions Work
+
+#### What is Voiding?
+Voiding means **canceling a completed sale** due to errors (wrong item, price mistake, duplicate charge, etc.)
+
+#### Void Process:
+
+**For Staff:**
+1. Go to "SALES RECORDS"
+2. Find the transaction to void
+3. Click "Void" button
+4. Enter **your own staff password** for verification
+5. Provide a reason for voiding
+6. Confirm void
+
+**For Admin:**
+1. Same process as staff BUT
+2. Can void **any** transaction (staff can only void recent ones)
+3. Enter **admin password**
+4. Admin approval is recorded in void history
+
+#### What Happens When You Void:
+
 ```
-Solution: Make some sales transactions first. Dashboard shows today's sales only.
+┌────────────────────────────────────────────────────┐
+│  1. Transaction status changes to "VOIDED"         │
+│  2. Money is considered REFUNDED                   │
+│  3. Inventory is RESTORED automatically:           │
+│     - Products added back                          │
+│     - Ingredients returned                         │
+│     - Packaging replenished                        │
+│     - Add-ons restored                             │
+│  4. Void is logged in audit trail                  │
+│  5. Admin can view void history anytime            │
+└────────────────────────────────────────────────────┘
+```
+
+**Important:**
+- Voided sales still appear in records (marked as VOIDED)
+- They don't count toward daily sales totals
+- Original receipt becomes invalid
+- Inventory restoration is automatic - no manual adjustment needed
+
+---
+
+## 🖨️ Thermal Printer Setup
+
+### Printer Configuration
+
+**System Supports:**
+- XPrinter 58mm thermal printers
+- Windows-connected printers (USB/Network)
+- Auto-print after every sale
+
+**Setup Steps:**
+
+1. **Install Printer**
+   - Connect XPrinter to computer via USB
+   - Install printer drivers
+   - Set printer name to "Thermal Printer" in Windows
+
+2. **Configure in System**
+   - Login as Admin
+   - Go to "SETTINGS"
+   - Set printer type: `Windows`
+   - Enter printer name: `Thermal Printer`
+   - Enable auto-print receipt: `ON`
+   - Save settings
+
+3. **Test Printing**
+   - Click "Test Printer" button
+   - Receipt should print immediately
+   - If fails, check:
+     - Printer is turned on
+     - Paper is loaded
+     - USB cable is connected
+     - Printer name matches exactly
+
+**Receipt Format:**
+```
+========================================
+         9BARS COFFEE
+========================================
+Date: 2025-11-16 14:30:25
+Transaction: TXN-20251116143025-847
+Cashier: staff1
+----------------------------------------
+ITEMS:
+Iced Latte (16oz)         x1   ₱120.00
+  + Whipped Cream              ₱20.00
+Americano (12oz)          x1   ₱90.00
+----------------------------------------
+Subtotal:                      ₱230.00
+----------------------------------------
+TOTAL:                         ₱230.00
+Payment Method: Cash
+----------------------------------------
+     Thank you for your purchase!
+         Visit us again soon!
+========================================
 ```
 
 ---
 
-## 📁 Project Structure
+## 📊 Reports & Analytics
+
+### Available Reports:
+
+**1. Daily Sales Summary**
+- Total revenue (today)
+- Cash vs GCash breakdown
+- Transaction count
+- Average transaction value
+
+**2. Best-Selling Products**
+- Top 10 products by sales
+- Quantity sold
+- Revenue per product
+
+**3. Transaction History**
+- All completed sales
+- Search by date range
+- Filter by payment method
+- Export to CSV
+
+**4. Void History (Admin Only)**
+- All voided transactions
+- Who voided each sale
+- Reasons for voiding
+- Timestamp tracking
+
+**5. Inventory Status**
+- Current stock levels
+- Low stock items
+- Items needing reorder
+- Stock value calculation
+
+---
+
+## 🔒 Security Features
+
+### Password Protection
+- All users must login
+- Failed login attempts are tracked
+- Account locks after 5 failed attempts
+- Session timeout after inactivity
+
+### Role-Based Access
+- **Admin:** Full access to everything
+- **Staff:** Limited to POS and sales viewing
+- Void actions require password re-entry
+- Sensitive actions are logged
+
+### Audit Trail
+- All voids are logged with:
+  - Who performed the void
+  - When it was done
+  - Reason provided
+  - Original transaction details
+- Admin can review complete void history
+
+---
+
+## ⚙️ Technical Details
+
+### System Architecture
 
 ```
-9bar-coffee_pos-system/
-├── admin/                  # Admin panel (products, sales, reports)
-├── staff/                  # Staff POS interface
-├── includes/              # Core PHP classes
-│   ├── database.php       # Database connection
-│   ├── auth.php          # Authentication
-│   ├── ThermalPrinter.php # Printer integration
-│   └── ProductManager.php # Product operations
-├── assets/                # CSS, images, JavaScript
-├── database/              # SQL scripts and migrations
-├── vendor/                # Composer dependencies
-├── 9bar_pos_complete.sql  # Complete database export
-├── login.php             # Login page
-└── index.php             # Landing page
+┌─────────────────────────────────────────────────────┐
+│                   USER INTERFACE                     │
+│  (Web Browser - Staff/Admin Access)                 │
+└──────────────────┬──────────────────────────────────┘
+                   │
+┌──────────────────▼──────────────────────────────────┐
+│               PHP BACKEND                            │
+│  ├── Authentication (Login/Logout)                  │
+│  ├── ProductManager (Product operations)            │
+│  ├── SalesManager (Sales processing)                │
+│  ├── ThermalPrinter (Receipt printing)              │
+│  └── Database (Data management)                     │
+└──────────────────┬──────────────────────────────────┘
+                   │
+┌──────────────────▼──────────────────────────────────┐
+│              MySQL DATABASE                          │
+│  ├── users (accounts)                               │
+│  ├── products (41 coffee products)                  │
+│  ├── sales (transaction records)                    │
+│  ├── inventory (stock levels)                       │
+│  ├── ingredients (raw materials)                    │
+│  ├── void_history (audit trail)                     │
+│  └── settings (system configuration)                │
+└─────────────────────────────────────────────────────┘
 ```
 
----
+### Database Tables
 
-## 📚 Documentation
+**Core Tables:**
+- `users` - Admin and staff accounts
+- `products` - 41 coffee products (Americano, Latte, Frappe, etc.)
+- `categories` - 8 categories (Hot Coffee, Iced Coffee, Frappe, B1T1, etc.)
+- `sales` - All transaction records
+- `sale_items` - Individual items per sale
+- `void_history` - Voided transaction audit trail
 
-Additional documentation files included:
-- `DATABASE_IMPORT_INSTRUCTIONS.md` - Detailed import guide
-- `VOID_FEATURE_DOCUMENTATION.md` - How to void transactions
-- `RECEIPT_PRINTING_COMPLETE.md` - Printer setup guide
-- `FORGOT_PASSWORD_FIX.md` - Password reset setup
-- `README_QUICK_START.md` - Quick setup guide
+**Inventory Tables:**
+- `inventory` - Product stock levels
+- `ingredients` - Raw materials (coffee, milk, syrups)
+- `packaging_supplies` - Cups, lids, straws
+- `addons` - Extra items (whipped cream, pearls, chocolate bits)
+- `product_ingredients` - Links products to ingredients
+- `product_packaging` - Links products to packaging
 
----
+**System Tables:**
+- `settings` - Printer config, system settings
+- `password_resets` - Password recovery tokens
+- `stock_adjustments` - Manual inventory changes
 
-## 🤝 Contributing
-
-This project is developed for **9Bars Coffee**. For improvements or bug reports:
-1. Fork the repository
-2. Create a feature branch
-3. Commit your changes
-4. Push to the branch
-5. Open a Pull Request
-
----
-
-## 📄 License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
----
-
-## 👨‍💻 Developer
-
-**LeeDev428**
-- GitHub: [@LeeDev428](https://github.com/LeeDev428)
-- Repository: [9bar-coffee_pos-system](https://github.com/LeeDev428/9bar-coffee_pos-system)
+### Technologies Used
+- **Backend:** PHP 7.4+
+- **Database:** MySQL 8.0+
+- **Frontend:** HTML5, CSS3, JavaScript
+- **Server:** Apache/Nginx (Laragon for development)
+- **Printer:** ESC/POS protocol for thermal printers
 
 ---
 
-## 🙏 Acknowledgments
+## 🛠️ Troubleshooting
 
-- **9Bars Coffee** - For the opportunity to develop this system
-- **PHPMailer** - Email functionality
-- **ESC/POS Community** - Thermal printer protocols
-- **XPrinter** - Hardware support
+### Common Issues
+
+**1. Printer Not Printing**
+- ✅ Check printer is powered on
+- ✅ Verify paper is loaded
+- ✅ Check USB cable connection
+- ✅ Ensure printer name in settings matches Windows printer name exactly
+- ✅ Test printer from Windows (print test page)
+- ✅ Restart printer and try again
+
+**2. Login Issues**
+- ✅ Check username/password (case-sensitive)
+- ✅ Account locked? Wait 30 seconds after 5 failed attempts
+- ✅ Clear browser cache and cookies
+- ✅ Try different browser
+
+**3. Void Transaction Errors**
+- ✅ Ensure you enter YOUR OWN password (not admin password for staff)
+- ✅ Check transaction hasn't been voided already
+- ✅ Verify you have permission (staff can only void recent transactions)
+- ✅ Refresh page and try again
+
+**4. Inventory Not Deducting**
+- ✅ Check product is linked to ingredients in admin panel
+- ✅ Verify packaging requirements are set
+- ✅ Ensure current stock is above 0
+- ✅ Check if product status is "Active"
+
+**5. Sales Not Showing in Records**
+- ✅ Refresh the page
+- ✅ Check date range filter
+- ✅ Verify sale completed successfully
+- ✅ Look in "All Statuses" (not just "Completed")
+
+---
+
+## 📝 Best Practices
+
+### For Staff:
+1. **Always verify cart before completing sale**
+2. **Double-check payment method selected**
+3. **Enter GCash reference number for digital payments**
+4. **Only void when absolutely necessary**
+5. **Provide clear reason when voiding**
+6. **Check receipt printed before customer leaves**
+
+### For Admin:
+1. **Review void history daily**
+2. **Monitor low stock alerts**
+3. **Update product prices regularly**
+4. **Backup database weekly**
+5. **Check daily sales report**
+6. **Adjust reorder levels based on demand**
+7. **Keep printer paper stocked**
 
 ---
 
 ## 📞 Support
 
-For questions or issues:
-1. Check the [Troubleshooting](#-troubleshooting) section
-2. Review documentation files in the project
-3. Open an issue on GitHub
-4. Contact the developer
+If you encounter issues not covered in this guide:
+
+1. Check the main `README.md` for technical setup
+2. Review database logs for error messages
+3. Verify all system requirements are met
+4. Contact system administrator
 
 ---
 
-## 🔄 Version History
+## 📄 License
 
-### v1.0.0 (November 2025)
-- ✅ Initial release
-- ✅ POS system with inventory tracking
-- ✅ Thermal receipt printing
-- ✅ Admin & staff roles
-- ✅ Email notifications
-- ✅ Void transaction feature
-- ✅ Automatic stock deduction
-- ✅ GCash payment support
+This system is proprietary software developed for 9Bars Coffee. All rights reserved.
 
 ---
 
-<div align="center">
-
-**Made with ☕ for 9Bars Coffee**
-
-⭐ Star this repository if you find it helpful!
-
-</div>
+**Last Updated:** November 16, 2025  
+**System Version:** 1.0  
+**Document Version:** 1.0
