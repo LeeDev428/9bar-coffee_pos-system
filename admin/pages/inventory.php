@@ -461,7 +461,7 @@ tbody tr:hover {
             <select class="form-control" id="categoryFilter" onchange="filterInventory()">
                 <option value="">All Categories</option>
                 <?php foreach ($categories as $category): ?>
-                <option value="<?php echo $category['category_id']; ?>">
+                <option value="<?php echo htmlspecialchars($category['category_name']); ?>">
                     <?php echo htmlspecialchars($category['category_name']); ?>
                 </option>
                 <?php endforeach; ?>
@@ -663,6 +663,56 @@ tbody tr:hover {
     </div>
 </div>
 
+<!-- Bulk Reorder Modal -->
+<div id="bulkReorderModal" class="modal">
+    <div class="modal-content" style="max-width: 700px;">
+        <div class="modal-header">
+            <h3>Bulk Reorder - Low Stock Items</h3>
+            <span class="close" onclick="closeModal('bulkReorderModal')">&times;</span>
+        </div>
+        <div class="modal-body">
+            <form method="POST" id="bulkReorderForm">
+                <input type="hidden" name="action" value="bulk_reorder">
+                
+                <div style="margin-bottom: 15px; padding: 10px; background: #fff3cd; border-radius: 4px; border-left: 4px solid #f39c12;">
+                    <strong>Note:</strong> Select items to reorder and enter quantities. Quantities will be added to current stock.
+                </div>
+                
+                <div style="max-height: 400px; overflow-y: auto;">
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <thead style="position: sticky; top: 0; background: #f8f9fa; z-index: 1;">
+                            <tr>
+                                <th style="padding: 10px; border-bottom: 2px solid #dee2e6;">
+                                    <input type="checkbox" id="selectAll" onchange="toggleAllProducts(this)">
+                                </th>
+                                <th style="padding: 10px; border-bottom: 2px solid #dee2e6; text-align: left;">Product</th>
+                                <th style="padding: 10px; border-bottom: 2px solid #dee2e6; text-align: center;">Current</th>
+                                <th style="padding: 10px; border-bottom: 2px solid #dee2e6; text-align: center;">Min</th>
+                                <th style="padding: 10px; border-bottom: 2px solid #dee2e6; text-align: center;">Reorder Qty</th>
+                            </tr>
+                        </thead>
+                        <tbody id="bulkReorderTableBody">
+                            <!-- Will be populated by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div style="text-align: right; margin-top: 20px; border-top: 1px solid #eee; padding-top: 15px; display: flex; justify-content: space-between; align-items: center;">
+                    <div style="color: #7f8c8d; font-size: 13px;">
+                        Selected: <strong id="selectedCount">0</strong> items
+                    </div>
+                    <div>
+                        <button type="button" class="btn" onclick="closeModal('bulkReorderModal')">Cancel</button>
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-shopping-cart"></i> Process Reorder
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <script>
 function openStockAdjustment(product) {
     document.getElementById('adjust_product_id').value = product.product_id;
@@ -698,23 +748,23 @@ function closeModal(modalId) {
 
 function filterInventory() {
     const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-    const categoryFilter = document.getElementById('categoryFilter').value;
+    const categoryFilter = document.getElementById('categoryFilter').value.toLowerCase();
     const statusFilter = document.getElementById('stockStatusFilter').value;
     
     const rows = document.querySelectorAll('#inventoryTable tbody tr');
     
     rows.forEach(row => {
         const name = row.dataset.name;
-        const category = row.dataset.category;
+        const category = row.dataset.category.toLowerCase();
         const status = row.dataset.status;
         
         let show = true;
         
-        if (searchTerm && !name.includes(searchTerm) && !category.toLowerCase().includes(searchTerm)) {
+        if (searchTerm && !name.includes(searchTerm) && !category.includes(searchTerm)) {
             show = false;
         }
         
-        if (categoryFilter && !category.includes(categoryFilter)) {
+        if (categoryFilter && category !== categoryFilter) {
             show = false;
         }
         
@@ -727,7 +777,7 @@ function filterInventory() {
 }
 
 function showBulkReorderModal() {
-    // Show products that need reordering
+    // Get products that need reordering from the table
     const lowStockItems = document.querySelectorAll('tr[data-status="low"], tr[data-status="reorder"]');
     
     if (lowStockItems.length === 0) {
@@ -735,7 +785,67 @@ function showBulkReorderModal() {
         return;
     }
     
-    alert(`Found ${lowStockItems.length} items that need reordering. This feature will be implemented in the next update.`);
+    // Populate the bulk reorder table
+    const tbody = document.getElementById('bulkReorderTableBody');
+    tbody.innerHTML = '';
+    
+    lowStockItems.forEach(row => {
+        const productId = row.dataset.productId;
+        const productName = row.querySelector('td:nth-child(1)').textContent.trim();
+        const currentStock = row.querySelector('td:nth-child(3)').textContent.trim();
+        const minMaxText = row.querySelector('td:nth-child(4)').textContent.trim();
+        const minStock = minMaxText.split('/')[0].trim();
+        const status = row.dataset.status;
+        
+        // Calculate suggested reorder quantity
+        const suggestedQty = Math.max(parseInt(minStock) - parseInt(currentStock), 5);
+        
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td style="padding: 8px; border-bottom: 1px solid #f0f0f0; text-align: center;">
+                <input type="checkbox" name="selected_products[]" value="${productId}" 
+                       class="product-checkbox" onchange="updateSelectedCount()">
+            </td>
+            <td style="padding: 8px; border-bottom: 1px solid #f0f0f0;">
+                <strong>${productName}</strong>
+                <span class="stock-status status-${status}" style="margin-left: 8px; font-size: 10px;">
+                    ${status.toUpperCase()}
+                </span>
+            </td>
+            <td style="padding: 8px; border-bottom: 1px solid #f0f0f0; text-align: center;">
+                <strong>${currentStock}</strong>
+            </td>
+            <td style="padding: 8px; border-bottom: 1px solid #f0f0f0; text-align: center;">
+                ${minStock}
+            </td>
+            <td style="padding: 8px; border-bottom: 1px solid #f0f0f0; text-align: center;">
+                <input type="number" name="reorder_quantities[${productId}]" 
+                       value="${suggestedQty}" min="1" 
+                       style="width: 80px; padding: 4px 8px; border: 1px solid #ced4da; border-radius: 4px; text-align: center;">
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+    
+    // Reset select all checkbox
+    document.getElementById('selectAll').checked = false;
+    updateSelectedCount();
+    
+    // Show modal
+    document.getElementById('bulkReorderModal').style.display = 'block';
+}
+
+function toggleAllProducts(checkbox) {
+    const checkboxes = document.querySelectorAll('.product-checkbox');
+    checkboxes.forEach(cb => {
+        cb.checked = checkbox.checked;
+    });
+    updateSelectedCount();
+}
+
+function updateSelectedCount() {
+    const checked = document.querySelectorAll('.product-checkbox:checked').length;
+    document.getElementById('selectedCount').textContent = checked;
 }
 
 function exportInventory() {
@@ -784,7 +894,7 @@ function showStockAlerts() {
 
 // Close modal when clicking outside
 window.onclick = function(event) {
-    const modals = ['stockAdjustmentModal', 'stockLevelsModal'];
+    const modals = ['stockAdjustmentModal', 'stockLevelsModal', 'bulkReorderModal'];
     modals.forEach(modalId => {
         const modal = document.getElementById(modalId);
         if (event.target === modal) {
@@ -792,6 +902,16 @@ window.onclick = function(event) {
         }
     });
 }
+
+// Validate bulk reorder form
+document.getElementById('bulkReorderForm')?.addEventListener('submit', function(e) {
+    const checked = document.querySelectorAll('.product-checkbox:checked').length;
+    if (checked === 0) {
+        e.preventDefault();
+        alert('Please select at least one product to reorder.');
+        return false;
+    }
+});
 </script>
 
 <?php include '../components/layout-end.php'; ?>
