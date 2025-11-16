@@ -510,4 +510,3 @@ class BackupManager {
         return round($bytes, $precision) . ' ' . $units[$i];
     }
 }
-?>
